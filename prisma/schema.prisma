@@ -1,6 +1,6 @@
 // =============================================================
 // Prisma Schema — POS F&B MVP
-// Database: MySQL (ganti ke postgresql jika pakai PostgreSQL)
+// Database: PostgreSQL (Neon.tech)
 // =============================================================
 
 generator client {
@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
