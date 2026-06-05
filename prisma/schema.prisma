@@ -1,0 +1,118 @@
+// =============================================================
+// Prisma Schema — POS F&B MVP
+// Database: MySQL (ganti ke postgresql jika pakai PostgreSQL)
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUM
+// ─────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  CASHIER
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  TRANSFER
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  password  String   // hashed via bcryptjs
+  role      Role     @default(CASHIER)
+  createdAt DateTime @default(now())
+
+  orders    Order[]  // satu kasir bisa punya banyak order
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// CATEGORY
+// ─────────────────────────────────────────────
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT
+// ─────────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  price       Int      // simpan dalam satuan terkecil (Rupiah)
+  sku         String?  // SKU/code produk
+  image       String?  // URL gambar produk
+  isAvailable Boolean  @default(true)
+  categoryId  String
+
+  category    Category    @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────
+// ORDER
+// ─────────────────────────────────────────────
+
+model Order {
+  id            String        @id @default(cuid())
+  totalAmount   Int           // total harga dalam Rupiah
+  paymentMethod PaymentMethod @default(CASH)
+  status        OrderStatus   @default(PENDING)
+  cashierId     String        // relasi ke User (Kasir)
+  createdAt     DateTime      @default(now())
+
+  cashier    User        @relation(fields: [cashierId], references: [id])
+  orderItems OrderItem[]
+
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// ORDER ITEM
+// ─────────────────────────────────────────────
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  subTotal  Int    // quantity * harga saat transaksi
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
