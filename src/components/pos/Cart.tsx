@@ -3,8 +3,12 @@
 // Menampilkan item di cart, update qty, total, dan checkout (Caffeine Hub theme)
 // =============================================================
 
-import { CartItem } from "@/app/(pos)/cashier/page";
+import { Product } from '@/types/product';
 
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
 interface Props {
   items: CartItem[];
   totalAmount: number;

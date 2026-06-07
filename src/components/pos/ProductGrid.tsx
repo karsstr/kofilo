@@ -3,7 +3,7 @@
 // Menampilkan grid kartu produk (Caffeine Hub theme)
 // =============================================================
 
-import { Product } from "@/app/(pos)/cashier/page";
+import { Product } from '@/types/product';
 
 interface Props {
   products: Product[];
@@ -71,7 +71,7 @@ export default function ProductGrid({ products, onAddToCart }: Props) {
           <div className="p-3.5 flex-1 flex flex-col justify-between">
             <div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-0.5">
-                {product.category.name}
+                {product.category?.name}
               </p>
               <h4 className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight">
                 {product.name}
