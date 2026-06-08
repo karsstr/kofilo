@@ -40,6 +40,7 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
   const [image, setImage] = useState("");
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 
   const todayStr = new Date().toLocaleDateString("en-US", {
     weekday: "short",
@@ -123,6 +124,7 @@ export default function ProductsPage() {
     setIsAvailable(true);
     setImage("");
     setEditId(null);
+    setIsCategoryDropdownOpen(false);
     setIsOpen(true);
   }
 
@@ -135,6 +137,7 @@ export default function ProductsPage() {
     setIsAvailable(p.isAvailable);
     setImage(p.image || "");
     setEditId(p.id);
+    setIsCategoryDropdownOpen(false);
     setIsOpen(true);
   }
 
@@ -419,24 +422,73 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Category */}
-              <div className="space-y-1.5">
+              {/* Category (Custom Animated Dropdown) */}
+              <div className="space-y-1.5 relative">
                 <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">
                   Category
                 </label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 appearance-none"
-                  required
+                
+                {/* Trigger Button */}
+                <div
+                  onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                  className={`w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] flex justify-between items-center cursor-pointer hover:border-[#6C4E31]/40 transition-all duration-300 ${isCategoryDropdownOpen ? "border-[#6C4E31]/40 ring-4 ring-[#6C4E31]/10 bg-white" : ""}`}
                 >
-                  <option value="" disabled className="text-gray-300">Select category...</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id} className="font-medium text-[#1a1f36]">
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                  <span>
+                    {categoryId 
+                      ? categories.find(c => c.id === categoryId)?.name 
+                      : <span className="text-gray-400 font-medium">Select category...</span>}
+                  </span>
+                  
+                  {/* Chevron Beranimasi (Berputar 180 derajat) */}
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    fill="none" viewBox="0 0 24 24" 
+                    strokeWidth={2.5} stroke="currentColor" 
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCategoryDropdownOpen ? "rotate-180 text-[#6C4E31]" : "rotate-0"}`}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </div>
+
+                {/* Dropdown Menu Mengambang */}
+                {isCategoryDropdownOpen && (
+                  <>
+                    {/* Layer transparan untuk menutup menu jika diklik di luar */}
+                    <div 
+                      className="fixed inset-0 z-[110]" 
+                      onClick={() => setIsCategoryDropdownOpen(false)}
+                    />
+                    
+                    {/* Kotak List Dropdown */}
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] bg-white border border-gray-100 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] py-2 animate-in fade-in zoom-in-[0.96] slide-in-from-top-1 duration-200 overflow-hidden">
+                      <div className="max-h-[200px] overflow-y-auto scrollbar-hide">
+                        {categories.map((cat) => (
+                          <div
+                            key={cat.id}
+                            onClick={() => {
+                              setCategoryId(cat.id);
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                            className={`px-5 py-3.5 text-[14px] cursor-pointer transition-all duration-200 flex items-center justify-between mx-2 rounded-xl ${
+                              categoryId === cat.id 
+                                ? "bg-[#6C4E31]/5 text-[#6C4E31] font-extrabold" 
+                                : "text-gray-500 font-bold hover:bg-gray-50 hover:text-[#1a1f36]"
+                            }`}
+                          >
+                            {cat.name}
+                            
+                            {/* Icon centang muncul di kategori yg dipilih */}
+                            {categoryId === cat.id && (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 animate-in zoom-in">
+                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Image URL */}
