@@ -274,25 +274,23 @@ export default function ProductsPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/30">
-                  <th className="py-5 px-6 w-16 text-center">
-                    <input type="checkbox" className="w-4 h-4 rounded text-[#1a1f36] border-gray-300 focus:ring-[#1a1f36]" />
-                  </th>
-                  <th className="py-5 px-4">Image</th>
-                  <th className="py-5 px-4">Product Name</th>
-                  <th className="py-5 px-4">SKU / Code</th>
-                  <th className="py-5 px-4">Price</th>
-                  <th className="py-5 px-4">Status</th>
-                  <th className="py-5 px-6 text-center">Actions</th>
+                  <th className="py-5 pl-8 pr-4 w-24">Image</th>
+                  {/* pl-14 mendorong Product Name jauh ke kanan dari Image */}
+                  <th className="py-5 pl-14 pr-8">Product Name</th>
+                  {/* px-10 memberikan jarak renggang di kiri dan kanan SKU */}
+                  <th className="py-5 px-10">SKU / Code</th>
+                  {/* px-10 memberikan jarak renggang di kiri dan kanan Price */}
+                  <th className="py-5 px-10">Price</th>
+                  {/* pl-12 mendorong Status lebih ke kanan lagi menjauhi Price */}
+                  <th className="py-5 pl-12 pr-6">Status</th>
+                  <th className="py-5 pr-8 pl-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50/80">
                 {filteredProducts.map((p) => (
                   <tr key={p.id} className="group hover:bg-gray-50/50 transition-colors duration-200">
-                    <td className="py-4 px-6 text-center align-middle">
-                      <input type="checkbox" className="w-4 h-4 rounded text-[#1a1f36] border-gray-300 focus:ring-[#1a1f36]" />
-                    </td>
-                    <td className="py-4 px-4 align-middle">
-                      <div className="w-[52px] h-[52px] rounded-[14px] bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center text-xl font-bold text-gray-300 shadow-sm group-hover:shadow-md transition-shadow">
+                    <td className="py-4 pl-8 pr-4 align-middle">
+                      <div className="w-[52px] h-[52px] rounded-[14px] bg-white border border-gray-100 overflow-hidden flex items-center justify-center text-xl font-bold text-gray-300 shadow-sm group-hover:shadow-md transition-shadow">
                         {p.image ? (
                           <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
                         ) : (
@@ -300,21 +298,24 @@ export default function ProductsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-4 align-middle">
+                    {/* Samakan padding dengan header */}
+                    <td className="py-4 pl-14 pr-8 align-middle">
                       <div className="font-extrabold text-[14.5px] text-[#1a1f36] leading-tight group-hover:text-[#6C4E31] transition-colors">{p.name}</div>
                       <div className="text-[12px] font-medium text-gray-400 mt-0.5">{selectedCategoryName}</div>
                     </td>
-                    <td className="py-4 px-4 align-middle">
+                    {/* Samakan padding dengan header */}
+                    <td className="py-4 px-10 align-middle">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 text-gray-500 font-bold text-[11px] tracking-wider font-mono">
                         {p.sku || "N/A"}
                       </span>
                     </td>
-                    <td className="py-4 px-4 align-middle font-black text-[14.5px] text-[#1a1f36]">
+                    {/* Samakan padding dengan header */}
+                    <td className="py-4 px-10 align-middle font-black text-[14.5px] text-[#1a1f36]">
                       Rp {p.price.toLocaleString("id-ID")}
                     </td>
-                    <td className="py-4 px-4 align-middle">
+                    {/* Samakan padding dengan header */}
+                    <td className="py-4 pl-12 pr-6 align-middle">
                       <div className="flex items-center gap-3">
-                        {/* iOS Style Toggle */}
                         <button
                           type="button"
                           onClick={() => handleToggleAvailable(p.id, p.isAvailable)}
@@ -331,9 +332,8 @@ export default function ProductsPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 align-middle text-center">
-                      <div className="flex justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        {/* Edit Button */}
+                    <td className="py-4 pr-8 pl-4 align-middle text-right">
+                      <div className="flex justify-end items-center gap-2">
                         <button
                           onClick={() => openEditModal(p)}
                           className="p-2.5 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all duration-200"
@@ -343,7 +343,6 @@ export default function ProductsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                           </svg>
                         </button>
-                        {/* Delete Button */}
                         <button
                           onClick={() => handleDeleteProduct(p.id)}
                           className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200"
