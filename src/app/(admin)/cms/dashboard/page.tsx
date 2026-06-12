@@ -58,13 +58,13 @@ export default async function DashboardPage() {
     { name: "Americano", category: "Coffee", qty: 25, revenue: 500000 },
   ];
 
-  // 3. Bottom 5 Slow Movers
+  // 3. Bottom 5 Slow Movers (Diperbarui: Menggunakan QTY dan Semua Low Demand)
   const bottomMovers = [
-    { name: "Matcha Cookies", category: "Snack", stock: 12, status: "Low Demand", color: "yellow" },
-    { name: "Earl Grey Tea", category: "Non-Coffee", stock: 45, status: "Low Demand", color: "yellow" },
-    { name: "Almond Milk Substitute", category: "Add-on", stock: 2, status: "Restock Warning", color: "red" },
-    { name: "Vegan Brownie", category: "Pastry", stock: 5, status: "Restock Warning", color: "red" },
-    { name: "Cascara Fizz", category: "Specialty", stock: 18, status: "Low Demand", color: "yellow" },
+    { name: "Matcha Cookies", category: "Snack", qty: 12, status: "Low Demand" },
+    { name: "Earl Grey Tea", category: "Non-Coffee", qty: 45, status: "Low Demand" },
+    { name: "Almond Milk Substitute", category: "Add-on", qty: 2, status: "Low Demand" },
+    { name: "Vegan Brownie", category: "Pastry", qty: 5, status: "Low Demand" },
+    { name: "Cascara Fizz", category: "Specialty", qty: 18, status: "Low Demand" },
   ];
 
   const todayStr = new Date().toLocaleDateString("en-US", {
@@ -191,7 +191,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Bottom 5 Slow Movers */}
+        {/* Bottom 5 Slow Movers (Diperbarui) */}
         <div className="bg-white border border-gray-100 rounded-[24px] p-7 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
           <h3 className="text-[17px] font-black text-[#1a1f36] mb-6">Bottom 5 Slow Movers</h3>
           <div className="overflow-x-auto">
@@ -200,7 +200,8 @@ export default async function DashboardPage() {
                 <tr className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                   <th className="pb-3 w-12 text-center">No</th>
                   <th className="pb-3">Menu Name</th>
-                  <th className="pb-3 text-right">Stock</th>
+                  {/* Kolom Stock Diganti Menjadi QTY */}
+                  <th className="pb-3 text-right">Qty</th>
                   <th className="pb-3 text-center">Status</th>
                 </tr>
               </thead>
@@ -212,15 +213,12 @@ export default async function DashboardPage() {
                       <div className="font-bold text-[14px] text-[#1a1f36]">{item.name}</div>
                       <div className="text-[12px] font-medium text-gray-400 mt-0.5">{item.category}</div>
                     </td>
-                    <td className="py-4 text-right font-black text-[14px] text-[#1a1f36]">{item.stock}</td>
+                    {/* Menggunakan Data QTY */}
+                    <td className="py-4 text-right font-black text-[14px] text-[#1a1f36]">{item.qty}</td>
                     <td className="py-4 text-center">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-extrabold tracking-wide ${
-                        item.color === "red" 
-                          ? "bg-rose-50 text-rose-600 border border-rose-100/50" 
-                          : "bg-amber-50 text-amber-600 border border-amber-100/50"
-                      }`}>
-                        {item.color === "red" && <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>}
-                        {item.color === "yellow" && <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" /></svg>}
+                      {/* Seluruh badge dijadikan kuning "Low Demand" */}
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-extrabold tracking-wide bg-amber-50 text-amber-600 border border-amber-100/50">
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" /></svg>
                         {item.status}
                       </span>
                     </td>

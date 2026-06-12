@@ -17,12 +17,15 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
   const [cupSize, setCupSize] = useState('Regular');
   const [sweetness, setSweetness] = useState('Normal Sugar');
   const [iceLevel, setIceLevel] = useState('Normal Ice');
+  const [itemNote, setItemNote] = useState(''); // State Catatan Tambahan
 
   // STATE UNTUK MODAL CHECKOUT / PAYMENT
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS'>('CASH');
   const [cashAmount, setCashAmount] = useState<number | 'EXACT' | null>('EXACT');
   const [transactionId, setTransactionId] = useState('');
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   const router = useRouter();
   const { cart, addToCart, updateQuantity, removeFromCart } = useCartStore();
@@ -65,6 +68,7 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
     setCupSize('Regular');
     setSweetness('Normal Sugar');
     setIceLevel('Normal Ice');
+    setItemNote(''); // Reset text area note
   };
 
   const handleAddToCartConfirm = () => {
@@ -76,10 +80,19 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
 
     let uniqueId = selectedProduct.id;
     let variantName = selectedProduct.name;
+    
+    // Hilangkan koma agar tidak error saat parsing nama varian nantinya
+    const cleanNote = itemNote.replace(/,/g, ' ').trim();
 
     if (isDrink) {
-      uniqueId = `${selectedProduct.id}-${cupSize}-${sweetness}-${iceLevel}`;
-      variantName = `${selectedProduct.name} (${cupSize}, ${sweetness}, ${iceLevel})`;
+      const noteStr = cleanNote ? `, Catatan: ${cleanNote}` : '';
+      uniqueId = `${selectedProduct.id}-${cupSize}-${sweetness}-${iceLevel}-${cleanNote}`;
+      variantName = `${selectedProduct.name} (${cupSize}, ${sweetness}, ${iceLevel}${noteStr})`;
+    } else {
+      if (cleanNote) {
+        uniqueId = `${selectedProduct.id}-${cleanNote}`;
+        variantName = `${selectedProduct.name} (Catatan: ${cleanNote})`;
+      }
     }
 
     addToCart({
@@ -197,7 +210,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl text-gray-200 group-hover:scale-110 transition-transform duration-500">☕</div>
                     )}
-                    {/* Subtle overlay gradient for premium feel */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
                   <div className="p-5 flex flex-col">
@@ -254,9 +266,12 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                     <div className="flex-1 pr-3">
                       <h3 className="font-extrabold text-[#1a1f36] text-[14px] leading-snug mb-1.5">{baseName}</h3>
                       {variants.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
+                        // MENGUBAH VARIAN MENJADI MENYUSUN KE BAWAH (VERTICAL)
+                        <div className="flex flex-col gap-1.5 mb-3 mt-2">
                           {variants.map((v, i) => (
-                            <span key={i} className="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-md">- {v}</span>
+                            <span key={i} className="text-[11.5px] text-gray-500 font-semibold flex items-start gap-1.5 leading-tight">
+                              <span className="text-gray-300">•</span> {v}
+                            </span>
                           ))}
                         </div>
                       )}
@@ -297,7 +312,10 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
           
           <button 
             disabled={cart.length === 0} 
-            onClick={openCheckoutModal}
+            onClick={() => {
+              setPhoneNumber(''); // Reset nomor setiap checkout baru
+              setShowLoyaltyModal(true);
+            }}
             className={`w-full py-4 rounded-2xl font-extrabold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${
               cart.length > 0 
                 ? 'bg-[#6C4E31] text-white shadow-[0_8px_20px_-6px_rgba(108,78,49,0.4)] hover:bg-[#583f27] hover:-translate-y-0.5 active:scale-[0.98]' 
@@ -311,59 +329,102 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
       </div>
 
       {/* ==========================================
-          MODAL 1: KUSTOMISASI MENU
+          MODAL 1: KUSTOMISASI MENU & NOTE
           ========================================== */}
       {selectedProduct && !showCheckoutModal && (
         <div className="fixed inset-0 z-[60] bg-[#1a1f36]/40 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300">
-          <div className="bg-white rounded-[28px] w-full max-w-[420px] p-7 shadow-2xl flex flex-col gap-7 animate-in fade-in zoom-in-[0.96] duration-300 ease-out">
+          {/* Pembungkus Utama: overflow-hidden agar scrollbar tidak memotong sudut melengkung */}
+          <div className="bg-white rounded-[28px] w-full max-w-[420px] shadow-2xl flex flex-col animate-in fade-in zoom-in-[0.96] duration-300 ease-out max-h-[85vh] overflow-hidden">
             
-            <div className="flex justify-between items-start">
+            {/* --- HEADER MODAL (Tetap Diam di Atas) --- */}
+            <div className="flex justify-between items-start p-7 pb-4 shrink-0 bg-white z-10">
               <div>
                 <h2 className="text-[22px] font-black text-[#1a1f36] leading-tight mb-1">{selectedProduct.name}</h2>
                 <p className="text-[15px] font-bold text-[#6C4E31]">Rp {selectedProduct.price.toLocaleString('id-ID')} <span className="text-gray-400 font-medium text-xs ml-1">Base Price</span></p>
               </div>
-              <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors active:scale-90">
+              <button onClick={() => setSelectedProduct(null)} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors active:scale-90 shrink-0 ml-4">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
-            {isDrinkCategory(selectedProduct) && (
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Cup Size</h3>
-                  <div className="flex gap-3">
-                    <button onClick={() => setCupSize('Regular')} className={`flex-1 py-3.5 rounded-2xl border-2 text-[14px] font-bold transition-all flex flex-col items-center justify-center ${cupSize === 'Regular' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}>Regular</button>
-                    <button onClick={() => setCupSize('Large')} className={`flex-1 py-3.5 rounded-2xl border-2 text-[14px] font-bold transition-all flex flex-col items-center justify-center ${cupSize === 'Large' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}>
-                      <span>Large</span><span className="text-[11px] font-extrabold text-[#6C4E31] opacity-80 mt-0.5">+Rp 5.000</span>
-                    </button>
+            {/* --- BODY MODAL (Hanya Area Ini yang Bisa Di-scroll) --- */}
+            <div className="flex-1 overflow-y-auto px-7 pb-4 space-y-6 scrollbar-hide">
+              {isDrinkCategory(selectedProduct) && (
+                <div className="flex flex-col gap-6">
+                  
+                  {/* 1. Cup Size */}
+                  <div className="flex flex-col gap-3">
+                    <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Cup Size</h3>
+                    <div className="flex flex-col gap-2.5">
+                      {/* Opsi Regular */}
+                      <label className={`relative flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] ${cupSize === 'Regular' ? 'border-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${cupSize === 'Regular' ? 'border-[#6C4E31]' : 'border-gray-300'}`}>
+                            {cupSize === 'Regular' && <div className="w-2.5 h-2.5 bg-[#6C4E31] rounded-full animate-in zoom-in"></div>}
+                          </div>
+                          <span className={`text-[14px] font-bold ${cupSize === 'Regular' ? 'text-[#6C4E31]' : 'text-gray-600'}`}>Regular</span>
+                        </div>
+                        <span className="text-[13px] font-semibold text-gray-400">Rp 0</span>
+                        <input type="radio" name="cupsize" value="Regular" checked={cupSize === 'Regular'} onChange={() => setCupSize('Regular')} className="hidden" />
+                      </label>
+                      
+                      {/* Opsi Large */}
+                      <label className={`relative flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] ${cupSize === 'Large' ? 'border-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${cupSize === 'Large' ? 'border-[#6C4E31]' : 'border-gray-300'}`}>
+                            {cupSize === 'Large' && <div className="w-2.5 h-2.5 bg-[#6C4E31] rounded-full animate-in zoom-in"></div>}
+                          </div>
+                          <span className={`text-[14px] font-bold ${cupSize === 'Large' ? 'text-[#6C4E31]' : 'text-gray-600'}`}>Large</span>
+                        </div>
+                        <span className="text-[13px] font-extrabold text-[#6C4E31]">+Rp 5.000</span>
+                        <input type="radio" name="cupsize" value="Large" checked={cupSize === 'Large'} onChange={() => setCupSize('Large')} className="hidden" />
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Sweetness Level</h3>
-                  <div className="flex gap-2">
-                    {['Normal Sugar', 'Low Sugar', 'No Sugar'].map((level) => (
-                      <button key={level} onClick={() => setSweetness(level)} className={`flex-1 py-3 rounded-xl border-2 text-[13px] font-bold transition-all ${sweetness === level ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}>
-                        {level.split(' ')[0]} <span className="block text-[10px] text-gray-400">{level.split(' ')[1]}</span>
-                      </button>
-                    ))}
+                  {/* 2. Sweetness Level */}
+                  <div className="flex flex-col gap-3">
+                    <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Sweetness Level</h3>
+                    <div className="flex gap-2">
+                      {['Normal Sugar', 'Low Sugar', 'No Sugar'].map((level) => (
+                        <button key={level} onClick={() => setSweetness(level)} className={`flex-1 py-3 rounded-xl border-2 text-[13px] font-bold transition-all ${sweetness === level ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}>
+                          {level.split(' ')[0]} <span className="block text-[10px] text-gray-400">{level.split(' ')[1]}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Ice Level</h3>
-                  <div className="flex gap-2">
-                    {['Normal Ice', 'Less Ice', 'No Ice'].map((level) => (
-                      <button key={level} onClick={() => setIceLevel(level)} className={`flex-1 py-3 rounded-xl border-2 text-[13px] font-bold transition-all ${iceLevel === level ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}>
-                        {level.split(' ')[0]} <span className="block text-[10px] text-gray-400">{level.split(' ')[1]}</span>
-                      </button>
-                    ))}
+                  {/* 3. Ice Level */}
+                  <div className="flex flex-col gap-3">
+                    <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Ice Level</h3>
+                    <div className="flex gap-2">
+                      {['Normal Ice', 'Less Ice', 'No Ice'].map((level) => (
+                        <button key={level} onClick={() => setIceLevel(level)} className={`flex-1 py-3 rounded-xl border-2 text-[13px] font-bold transition-all ${iceLevel === level ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}>
+                          {level.split(' ')[0]} <span className="block text-[10px] text-gray-400">{level.split(' ')[1]}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              )}
+
+              {/* TEXTAREA CATATAN TAMBAHAN */}
+              <div className="flex flex-col gap-3 pt-2">
+                <div className="flex justify-between items-end">
+                  <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider">Catatan Tambahan</h3>
+                  <span className="text-[10px] text-gray-400 font-bold">{itemNote.length}/50</span>
+                </div>
+                <textarea
+                  value={itemNote}
+                  onChange={(e) => setItemNote(e.target.value.slice(0, 50))}
+                  placeholder="Misal: Tolong dipanaskan / Susunya dikurangi"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-2xl px-4 py-3 text-[14px] font-semibold text-[#1a1f36] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 resize-none h-20 placeholder-gray-400"
+                ></textarea>
               </div>
-            )}
+            </div>
 
-            <div className="flex gap-4 items-center mt-2 pt-6 border-t border-gray-100">
+            {/* --- FOOTER MODAL (Tetap Diam di Bawah) --- */}
+            <div className="flex gap-4 items-center p-7 pt-5 border-t border-gray-100 shrink-0 bg-white z-10">
               <div className="flex items-center gap-4 bg-gray-50 rounded-2xl p-2 border border-gray-200">
                 <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-black hover:bg-white rounded-xl shadow-sm transition-all font-bold text-xl active:scale-95">−</button>
                 <span className="font-black text-[17px] w-5 text-center">{quantity}</span>
@@ -375,6 +436,77 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
               </button>
             </div>
             
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: WHATSAPP LOYALTY VALIDATION
+          ========================================== */}
+      {showLoyaltyModal && (
+        <div className="fixed inset-0 z-[55] bg-[#1a1f36]/40 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-[440px] p-8 shadow-2xl flex flex-col items-center text-center animate-in fade-in zoom-in-[0.96] duration-300 ease-out">
+            
+            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-[#6C4E31] border border-gray-100 mb-5">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+              </svg>
+            </div>
+
+            <h2 className="text-[22px] font-black text-[#6C4E31] tracking-tight leading-tight mb-2">
+              Masukkan Nomor WhatsApp
+            </h2>
+            <p className="text-sm font-medium text-gray-500 max-w-[320px] mb-6 leading-relaxed">
+              Kumpulkan poin loyalty otomatis dan terima nota digital langsung di WhatsApp Anda.
+            </p>
+
+            <div className="w-full text-left">
+              <div className="flex items-center bg-gray-50/50 border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#6C4E31]/40 focus-within:bg-white focus-within:ring-4 focus-within:ring-[#6C4E31]/5 transition-all duration-300">
+                <span className="px-4 py-4 bg-gray-50 border-r border-gray-200 text-[#1a1f36] font-black text-[15px] select-none">
+                  +62
+                </span>
+                <input
+                  type="text"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                  placeholder="8xx-xxxx-xxxx"
+                  className="w-full bg-transparent px-4 py-4 text-[15px] font-bold text-[#1a1f36] focus:outline-none placeholder-gray-300"
+                />
+              </div>
+              <p className="text-[11px] font-semibold text-gray-400 mt-2.5 ml-1">
+                Nomor handphone harus terdiri dari 10 - 13 angka.
+              </p>
+            </div>
+
+            <div className="flex gap-4 w-full mt-8">
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoneNumber('');
+                  setShowLoyaltyModal(false);
+                  openCheckoutModal();
+                }}
+                className="flex-1 py-4 border border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700 rounded-2xl font-bold text-[14.5px] transition-all active:scale-[0.98]"
+              >
+                Lewati
+              </button>
+              <button
+                type="button"
+                disabled={phoneNumber.length < 10 || phoneNumber.length > 13}
+                onClick={() => {
+                  setShowLoyaltyModal(false);
+                  openCheckoutModal();
+                }}
+                className={`flex-1 py-4 rounded-2xl font-bold text-[14.5px] transition-all flex items-center justify-center ${
+                  phoneNumber.length >= 10 && phoneNumber.length <= 13
+                    ? 'bg-[#6C4E31] text-white hover:bg-[#583f27] hover:-translate-y-0.5 shadow-md active:scale-[0.98]'
+                    : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                }`}
+              >
+                Lanjutkan
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -395,7 +527,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                 </button>
               </div>
 
-              {/* Toggle Payment Method */}
               <div className="flex gap-4 mb-8">
                 <button 
                   onClick={() => setPaymentMethod('CASH')}
@@ -413,7 +544,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                 </button>
               </div>
 
-              {/* Quick Cash Options */}
               {paymentMethod === 'CASH' && (
                 <div className="mb-auto animate-in fade-in duration-300">
                   <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider mb-4">Quick Cash</h3>
@@ -437,7 +567,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                 </div>
               )}
 
-              {/* QRIS Placeholder */}
               {paymentMethod === 'QRIS' && (
                 <div className="mb-auto flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50 animate-in fade-in duration-300">
                   <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-5">
@@ -459,7 +588,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
             {/* KANAN: RECEIPT PREVIEW */}
             <div className="w-[380px] bg-[#f4f5f7] border-l border-gray-200 p-10 flex justify-center items-start overflow-y-auto hidden md:flex">
               <div className="bg-white w-full rounded-sm relative shadow-md" style={{ filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.05))" }}>
-                {/* Paper zig-zag top simulation */}
                 <div className="absolute top-0 left-0 right-0 h-2 bg-repeat-x" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
                 
                 <div className="p-7 pt-10 pb-10 font-mono text-[12px] text-gray-800">
@@ -490,8 +618,8 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                             <span>Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
                           </div>
                           {variants.length > 0 && (
-                            <div className="text-gray-400 pl-5 mt-1.5 text-[11px]">
-                              {variants.map((v, i) => <div key={i} className="mb-0.5">- {v}</div>)}
+                            <div className="text-gray-400 pl-5 mt-1.5 text-[11px] flex flex-col gap-0.5">
+                              {variants.map((v, i) => <div key={i}>- {v}</div>)}
                             </div>
                           )}
                         </div>
@@ -521,7 +649,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                   </div>
                 </div>
 
-                {/* Paper zig-zag bottom simulation */}
                 <div className="absolute bottom-0 left-0 right-0 h-2 bg-repeat-x rotate-180" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
               </div>
             </div>

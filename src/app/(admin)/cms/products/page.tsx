@@ -141,6 +141,17 @@ export default function ProductsPage() {
     setIsOpen(true);
   }
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Submit Form
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -490,18 +501,49 @@ export default function ProductsPage() {
                 )}
               </div>
 
-              {/* Image URL */}
+              {/* Product Image Upload */}
               <div className="space-y-1.5">
                 <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">
-                  Image URL <span className="text-gray-300 lowercase font-medium tracking-normal">(Optional)</span>
+                  Product Image <span className="text-gray-300 lowercase font-medium tracking-normal">(Optional)</span>
                 </label>
-                <input
-                  type="text"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300"
-                />
+                <div className="flex items-center gap-4">
+                  {/* Kotak Preview Gambar */}
+                  {image ? (
+                    <div className="relative w-[52px] h-[52px] rounded-[14px] border border-gray-200 overflow-hidden shrink-0 group shadow-sm">
+                      <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                      {/* Tombol Hapus Gambar (Muncul saat dihover) */}
+                      <button
+                        type="button"
+                        onClick={() => setImage("")}
+                        className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        title="Remove Image"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-[52px] h-[52px] rounded-[14px] border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center shrink-0 text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                    </div>
+                  )}
+                  
+                  {/* Tombol Upload */}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="image-upload"
+                      accept="image/png, image/jpeg, image/jpg, image/webp"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-[14px] text-[14px] flex justify-center items-center cursor-pointer hover:border-[#6C4E31]/40 hover:bg-white focus-within:ring-4 focus-within:ring-[#6C4E31]/10 transition-all duration-300"
+                    >
+                      {image ? "Change Image" : "Upload File"}
+                    </label>
+                  </div>
+                </div>
               </div>
 
               {/* Available Checkbox (Toggle style) */}

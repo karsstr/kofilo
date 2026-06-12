@@ -33,7 +33,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "#",
+    href: "/cms/loyalty",
     label: "Loyalty Hub",
     icon: (
       <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -65,17 +65,17 @@ export default function Sidebar({ user }: Props) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-[260px] bg-white border-r border-gray-100 flex flex-col min-h-screen text-[#1a1f36] relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.01)]">
+    <aside className="w-[260px] bg-white border-r border-gray-100 flex flex-col h-screen text-[#1a1f36] sticky top-0 z-30 shadow-[4px_0_24px_rgba(0,0,0,0.01)]">
       
       {/* ── Brand Header ───────────────────────────────────── */}
       <div className="px-7 py-8 flex items-center gap-3">
         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6C4E31] to-[#583f27] flex items-center justify-center text-white text-xl shadow-[0_4px_12px_rgba(108,78,49,0.3)] relative">
-          <span className="font-black text-xl tracking-tighter">C</span>
+          <span className="font-black text-xl tracking-tighter">K</span>
           {/* Subtle shine effect */}
           <div className="absolute inset-0 bg-gradient-to-tr from-white/0 to-white/20 rounded-2xl"></div>
         </div>
         <div>
-          <h1 className="font-black text-[17px] leading-tight tracking-tight text-[#1a1f36]">Craft Coffee</h1>
+          <h1 className="font-black text-[17px] leading-tight tracking-tight text-[#1a1f36]">Kofilo</h1>
           <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-0.5">Workspace</p>
         </div>
       </div>
