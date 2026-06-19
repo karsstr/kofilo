@@ -1,0 +1,128 @@
+'use client';
+
+// =============================================================
+// Page: /{tableId}/cart
+// Halaman keranjang belanja PWA
+// PERUBAHAN: Setelah login, arahkan ke halaman Checkout
+// =============================================================
+
+import { useState, use } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCartStore } from '@/store/useCartStore';
+import { usePwaAuthStore } from '@/store/usePwaAuthStore';
+import AuthDrawer from '@/components/customer/AuthDrawer';
+
+export default function CustomerCartPage({ params }: { params: Promise<{ tableId: string }> }) {
+  const { tableId } = use(params);
+  const router = useRouter();
+  const { cart, updateQuantity, removeFromCart } = useCartStore();
+  const { isLoggedIn } = usePwaAuthStore();
+
+  const [showAuthDrawer, setShowAuthDrawer] = useState(false);
+
+  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const taxAndService = subtotal * 0.1;
+  const total = subtotal + taxAndService;
+
+  const handleDecrease = (id: string, qty: number) => {
+    if (qty > 1) updateQuantity(id, qty - 1);
+    else removeFromCart(id);
+  };
+
+  // Klik tombol Lanjut Checkout
+  const handleCheckout = () => {
+    if (!isLoggedIn()) {
+      setShowAuthDrawer(true);
+    } else {
+      router.push(`/${tableId}/checkout`);
+    }
+  };
+
+  // Setelah login berhasil dari drawer, arahkan ke checkout
+  const handleAuthSuccess = () => {
+    setShowAuthDrawer(false);
+    router.push(`/${tableId}/checkout`);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fa] font-sans text-gray-800 flex flex-col">
+      {/* HEADER */}
+      <header className="bg-white px-5 py-4 border-b border-gray-100 sticky top-0 z-10 flex items-center gap-3 shadow-sm">
+        <Link href={`/${tableId}/menu`} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </Link>
+        <div>
+          <h1 className="font-extrabold text-base text-gray-900">Keranjang</h1>
+          <p className="text-xs text-gray-500">Meja {tableId}</p>
+        </div>
+      </header>
+
+      {/* KONTEN */}
+      <main className="flex-1 overflow-y-auto p-4">
+        {cart.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-60 text-gray-400">
+            <span className="text-5xl mb-3">🛒</span>
+            <p className="text-sm font-medium">Keranjang kosong</p>
+            <Link href={`/${tableId}/menu`} className="mt-4 text-[#7a5c43] text-sm font-bold">Kembali ke Menu</Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 max-w-lg mx-auto">
+            {cart.map((item) => (
+              <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-gray-900">{item.name}</p>
+                  {item.variants && <p className="text-xs text-gray-400 mt-0.5">{item.variants}</p>}
+                  <p className="text-[#7a5c43] font-bold text-sm mt-1">Rp {item.price.toLocaleString('id-ID')}</p>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1">
+                  <button onClick={() => handleDecrease(item.id, item.quantity)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">−</button>
+                  <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* BOTTOM SUMMARY & CHECKOUT */}
+      {cart.length > 0 && (
+        <div className="bg-white border-t border-gray-200 p-5 rounded-t-3xl shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)] max-w-lg mx-auto w-full">
+          <div className="flex flex-col gap-2 mb-5">
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Subtotal</span><span>Rp {subtotal.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Pajak & Layanan (10%)</span><span>Rp {taxAndService.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="border-t border-dashed border-gray-200 my-1" />
+            <div className="flex justify-between items-center">
+              <span className="font-extrabold text-base text-gray-900">Total</span>
+              <span className="font-extrabold text-base text-gray-900">Rp {total.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCheckout}
+            className="w-full py-4 rounded-xl font-bold text-sm transition-all bg-[#7a5c43] text-white hover:bg-[#634832] active:scale-95"
+          >
+            Lanjut ke Checkout
+          </button>
+          {!isLoggedIn() && (
+            <p className="text-center text-xs text-gray-400 mt-2">Anda perlu memasukkan nomor HP untuk checkout</p>
+          )}
+        </div>
+      )}
+
+      {/* AUTH DRAWER */}
+      <AuthDrawer
+        isOpen={showAuthDrawer}
+        onClose={() => setShowAuthDrawer(false)}
+        onSuccess={handleAuthSuccess}
+      />
+    </div>
+  );
+}

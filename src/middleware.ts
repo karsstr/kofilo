@@ -1,0 +1,97 @@
+// =============================================================
+// Middleware -- RBAC (Role-Based Access Control)
+// File ini dijalankan SEBELUM setiap request masuk ke halaman/API
+// =============================================================
+
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+// --- Route Configuration ---
+
+/** Route yang hanya bisa diakses oleh SUPER_ADMIN */
+const ADMIN_ROUTES = ["/cms"];
+
+/** Route yang hanya bisa diakses oleh CASHIER (atau semua role yang login) */
+const CASHIER_ROUTES = ["/cashier"];
+
+/**
+ * Route publik -- tidak perlu autentikasi POS sama sekali.
+ * Termasuk semua route PWA pelanggan dan API publik PWA.
+ */
+const PUBLIC_ROUTES = [
+  "/login",
+  "/api/auth",
+  // API PWA publik
+  "/api/v1/pwa/menus",
+  "/api/v1/pwa/auth",
+  "/api/v1/pwa/orders",
+  // 🔥 PERBAIKAN: Buka akses API master data agar PWA Customer bisa mengambil menu
+  "/api/products",
+  "/api/categories"
+];
+
+// --- Middleware Function ---
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Lewati semua route API PWA publik
+  if (pathname.startsWith("/api/v1/pwa")) return NextResponse.next();
+
+  // Lewati halaman customer (dinamis /{tableId}/menu, /{tableId}/cart, dll)
+  // Pola: segment pertama bukan keyword admin/cashier/cms/login/api
+  const firstSegment = pathname.split("/")[1];
+  const SYSTEM_SEGMENTS = ["cms", "cashier", "api", "login", "_next", "favicon.ico", "icons", "public"];
+  if (firstSegment && !SYSTEM_SEGMENTS.includes(firstSegment)) {
+    return NextResponse.next();
+  }
+
+  // Lewati route publik
+  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
+    pathname.startsWith(route)
+  );
+  if (isPublicRoute) return NextResponse.next();
+
+  // Cek session cookie POS
+  const sessionCookie = request.cookies.get("pos_session")?.value;
+
+  // Jika tidak ada session -- redirect ke login
+  if (!sessionCookie) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Parse session
+  let session: { role: string } | null = null;
+  try {
+    session = JSON.parse(
+      Buffer.from(sessionCookie, "base64").toString("utf-8")
+    );
+  } catch {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const role = session?.role;
+
+  // Guard Admin Routes
+  const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
+  if (isAdminRoute && role !== "SUPER_ADMIN") {
+    return NextResponse.redirect(new URL("/cashier", request.url));
+  }
+
+  // Guard Cashier Routes
+  const isCashierRoute = CASHIER_ROUTES.some((route) =>
+    pathname.startsWith(route)
+  );
+  if (isCashierRoute && role !== "CASHIER" && role !== "SUPER_ADMIN") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.next();
+}
+
+// Matcher -- jalankan middleware untuk semua route kecuali static files
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|sw.js|workbox-).*)",
+  ],
+};
