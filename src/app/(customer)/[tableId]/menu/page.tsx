@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // 🔥 TAMBAHAN BARU
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/useCartStore';
 import { usePwaAuthStore } from '@/store/usePwaAuthStore';
 import AuthDrawer from '@/components/customer/AuthDrawer';
@@ -26,7 +26,7 @@ interface MenuCategory {
 
 export default function CustomerMenuPage({ params }: { params: Promise<{ tableId: string }> }) {
   const { tableId } = use(params);
-  const router = useRouter(); // 🔥 TAMBAHAN BARU
+  const router = useRouter(); 
   
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState('');
@@ -41,8 +41,13 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
   const [iceLevel, setIceLevel] = useState('Normal Ice');
   const [itemNote, setItemNote] = useState('');
 
+  // State untuk menangkap notifikasi login berhasil
+  const [toast, setToast] = useState<{ show: boolean; title: string; message: string }>({ 
+    show: false, title: '', message: '' 
+  });
+
   const { cart, addToCart } = useCartStore();
-  const { customer, isLoggedIn, clearCustomer } = usePwaAuthStore();
+  const { customer, isLoggedIn } = usePwaAuthStore();
   const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,6 +99,23 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
     };
     fetchMenu();
     return () => { isMounted = false; };
+  }, []);
+
+  // Menangkap sinyal "justLoggedIn" dari SessionStorage
+  useEffect(() => {
+    const justLoggedIn = sessionStorage.getItem("justLoggedIn");
+    if (justLoggedIn === "true") {
+      setToast({ 
+        show: true, 
+        title: 'Selamat Datang!', 
+        message: 'Anda berhasil masuk ke Kofilo Loyalty.' 
+      });
+      sessionStorage.removeItem("justLoggedIn");
+      
+      setTimeout(() => {
+        setToast(prev => ({ ...prev, show: false }));
+      }, 4000);
+    }
   }, []);
 
   useEffect(() => {
@@ -196,7 +218,6 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             if (!isLoggedIn()) {
               setShowAuthDrawer(true);
             } else {
-              // Jika sudah login, klik banner akan langsung menuju halaman Tukar Poin
               router.push(`/${tableId}/redeem`);
             }
           }}
@@ -226,36 +247,23 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             </div>
           </div>
           
-          {/* 🔥 PERBAIKAN: Tombol "Tukarkan" dan "Keluar" */}
-          <div className={`flex items-center rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${
-            isLoggedIn() ? 'bg-white/20 text-white backdrop-blur-sm border border-white/10 py-1.5 px-3' : 'bg-[#A67B5B] text-white px-4 py-2.5'
-          }`}>
+          {/* 🔥 PERBAIKAN: Hanya Tombol "Tukarkan" (atau "Daftar") 🔥 */}
+          <div className="relative z-10">
             {isLoggedIn() ? (
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(`/${tableId}/redeem`); // Pergi ke halaman Tukar Poin
-                  }}
-                  className="hover:text-[#E3C39D] transition-colors"
-                >
-                  Tukarkan
-                </button>
-                <div className="w-[1px] h-3 bg-white/30"></div>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm('Yakin ingin keluar dari akun Kofilo Loyalty?')) {
-                      clearCustomer(); 
-                      alert('Kamu berhasil keluar.');
-                    }
-                  }}
-                  className="text-red-300 hover:text-red-400 transition-colors"
-                >
-                  Keluar
-                </button>
-              </div>
-            ) : "Daftar"}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/${tableId}/redeem`);
+                }}
+                className="bg-white/20 text-white backdrop-blur-sm border border-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-white/30 transition-colors"
+              >
+                Tukarkan
+              </button>
+            ) : (
+              <span className="bg-[#A67B5B] text-white px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+                Daftar
+              </span>
+            )}
           </div>
         </button>
       </div>
@@ -278,7 +286,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
       <main className="px-5 py-8 max-w-2xl mx-auto flex flex-col gap-10">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-40 text-[#A67B5B]">
-            <div className="animate-pulse w-8 h-8 border-4 border-[#A67B5B] border-t-transparent rounded-full mb-3"></div>
+            <div className="animate-spin w-8 h-8 border-4 border-[#A67B5B] border-t-transparent rounded-full mb-3"></div>
             <p className="text-[11px] font-black tracking-[0.2em] uppercase">Memuat Menu...</p>
           </div>
         ) : categories.length === 0 ? (
@@ -409,6 +417,23 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
       )}
 
       <AuthDrawer isOpen={showAuthDrawer} onClose={() => setShowAuthDrawer(false)} context="loyalty" />
+
+      {/* ── TOAST NOTIFICATION PWA ── */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-top-5 fade-in duration-300">
+          <div className="bg-white rounded-[20px] p-4 pr-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-emerald-100 flex items-center gap-4 min-w-[300px]">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1 pt-0.5">
+              <h4 className="font-black text-[15px] text-emerald-600 leading-none mb-1">{toast.title}</h4>
+              <p className="text-[13px] text-gray-500 font-medium">{toast.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {cart.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-5 z-40 animate-in slide-in-from-bottom-full duration-500">

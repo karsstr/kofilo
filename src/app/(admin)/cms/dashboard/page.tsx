@@ -1,129 +1,103 @@
-// =============================================================
-// Dashboard CMS Page — (admin)/cms/dashboard/page.tsx
-// Dashboard Monitoring Finansial & Produk (Real Data Only)
-// =============================================================
-
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import DashboardDatePicker from "./DashboardDatePicker"; // Kita akan buat komponen ini di langkah 2
 
-export default async function DashboardPage() {
-  const session = await getSession();
-  if (!session || session.role !== "SUPER_ADMIN") {
-    redirect("/login");
-  }
-
-  // 1. Ambil data transaksi selesai dari POS
-  const completedOrders = await prisma.order.findMany({
-    where: { status: "COMPLETED" },
-    include: {
-      orderItems: {
-        include: { product: { include: { category: true } } },
-      },
-    },
-  });
-
-  // 1b. Ambil data transaksi selesai dari PWA
-  const completedPwaOrders = await prisma.pwaOrder.findMany({
-    where: { status: "READY_FOR_PICKUP" }, // Asumsi PWA yang dihitung adalah yang sudah selesai
-  });
-
-  const totalSales = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0) +
-                     completedPwaOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const totalCompletedOrders = completedOrders.length + completedPwaOrders.length;
-  const averageTicket = totalCompletedOrders > 0 ? Math.floor(totalSales / totalCompletedOrders) : 0;
-
-  // 1c. Ambil SEMUA produk dari DB sebagai basis perhitungan
-  // (Agar produk yang belum laku sama sekali / QTY 0 tetap terhitung sebagai Slow Movers)
-  const allProducts = await prisma.product.findMany({
-    include: { category: true },
-  });
-
-  // Siapkan map untuk semua produk (Awal mula QTY = 0 semua)
-  interface ItemSales {
-    name: string;
-    category: string;
-    qty: number;
-    revenue: number;
-  }
-  const itemSalesMap: Record<string, ItemSales> = {};
+// Fungsi untuk menormalisasi tanggal agar sesuai zona waktu lokal (Mulai jam 00:00 s.d 23:59)
+function getDateRange(dateStr?: string) {
+  const targetDate = dateStr ? new Date(dateStr) : new Date();
   
-  allProducts.forEach((p) => {
-    itemSalesMap[p.id] = {
-      name: p.name,
-      category: p.category?.name || "Lainnya",
-      qty: 0,
-      revenue: 0,
-    };
+  const startDate = new Date(targetDate);
+  startDate.setHours(0, 0, 0, 0);
+  
+  const endDate = new Date(targetDate);
+  endDate.setHours(23, 59, 59, 999);
+
+  return { startDate, endDate, targetDate };
+}
+
+// Tambahkan "searchParams" untuk menangkap URL Parameter (Next.js 15+ menggunakan Promise)
+// ... (Bagian import dan setup awal tetap sama)
+
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const session = await getSession();
+  if (!session || session.role !== "SUPER_ADMIN") redirect("/login");
+
+  const resolvedParams = await searchParams;
+  const { startDate, endDate, targetDate } = getDateRange(resolvedParams.date);
+
+  // 1. Data untuk METRIK (DIFILTER TANGGAL)
+  const completedOrders = await prisma.order.findMany({
+    where: { status: "COMPLETED", createdAt: { gte: startDate, lte: endDate } },
+    include: { orderItems: { include: { product: { include: { category: true } } } } },
+  });
+  const completedPwaOrders = await prisma.pwaOrder.findMany({
+    where: { status: "READY_FOR_PICKUP", createdAt: { gte: startDate, lte: endDate } },
   });
 
-  // 2. Tambahkan kuantitas dari transaksi POS Kasir
-  completedOrders.forEach((order) => {
-    order.orderItems.forEach((item) => {
-      const prodId = item.productId;
-      if (itemSalesMap[prodId]) {
-        itemSalesMap[prodId].qty += item.quantity;
-        itemSalesMap[prodId].revenue += item.subTotal;
-      }
-    });
+  const totalSales = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0) +
+                     completedPwaOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalCompletedOrders = completedOrders.length + completedPwaOrders.length;
+  let totalItemsSold = 0;
+  completedOrders.forEach(o => o.orderItems.forEach(i => totalItemsSold += i.quantity));
+  completedPwaOrders.forEach(o => (o.items as any[]).forEach(i => totalItemsSold += i.quantity));
+
+  // 2. Data untuk BEST/SLOW MOVERS (DIAMBIL KESELURUHAN / SEMUA WAKTU)
+  const allCompletedOrders = await prisma.order.findMany({
+    where: { status: "COMPLETED" },
+    include: { orderItems: { include: { product: { include: { category: true } } } } },
+  });
+  const allCompletedPwaOrders = await prisma.pwaOrder.findMany({
+    where: { status: "READY_FOR_PICKUP" },
   });
 
-  // 2b. Tambahkan kuantitas dari transaksi PWA Customer
-  interface PwaOrderItem {
-    productId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    subTotal: number;
-  }
-
-  completedPwaOrders.forEach((order) => {
-    const items = (order.items as any as PwaOrderItem[]) || [];
-    items.forEach((item) => {
-      const prodId = item.productId;
-      if (itemSalesMap[prodId]) {
-        itemSalesMap[prodId].qty += item.quantity;
-        itemSalesMap[prodId].revenue += (item.price * item.quantity); // Fallback hitung revenue
-      }
-    });
+  const allProducts = await prisma.product.findMany({ include: { category: true } });
+  
+  // Logic perhitungan total semua waktu (ItemSales)
+  const itemSalesMap: Record<string, ItemSales> = {};
+  allProducts.forEach(p => {
+    itemSalesMap[p.id] = { name: p.name, category: p.category?.name || "Lainnya", qty: 0, revenue: 0 };
   });
 
-  // Konversi map menjadi array
+  allCompletedOrders.forEach(o => o.orderItems.forEach(i => {
+    if (itemSalesMap[i.productId]) {
+      itemSalesMap[i.productId].qty += i.quantity;
+      itemSalesMap[i.productId].revenue += i.subTotal;
+    }
+  }));
+
+  allCompletedPwaOrders.forEach(o => (o.items as any[]).forEach(i => {
+    if (itemSalesMap[i.productId]) {
+      itemSalesMap[i.productId].qty += i.quantity;
+      itemSalesMap[i.productId].revenue += (i.price * i.quantity);
+    }
+  }));
+
   const allSalesArray = Object.values(itemSalesMap);
+  const topSellers = [...allSalesArray].filter(i => i.qty > 0).sort((a, b) => b.qty - a.qty).slice(0, 5);
+  const bottomMovers = [...allSalesArray].sort((a, b) => a.qty - b.qty).slice(0, 5).map(item => ({ ...item, status: item.qty === 0 ? "Zero Sales" : "Low Demand" }));
 
-  // 3a. TOP 5 BEST SELLERS (Diurutkan dari QTY Terbanyak)
-  // Hanya ambil yang qty > 0 agar produk yang tak laku tidak masuk Top Seller
-  const topSellers = [...allSalesArray]
-    .filter(item => item.qty > 0) 
-    .sort((a, b) => b.qty - a.qty)
-    .slice(0, 5);
 
-  // 3b. BOTTOM 5 SLOW MOVERS (Diurutkan dari QTY Paling Sedikit, termasuk 0)
-  const bottomMovers = [...allSalesArray]
-    .sort((a, b) => a.qty - b.qty)
-    .slice(0, 5)
-    .map(item => ({
-      ...item,
-      // Logika dinamis untuk label status
-      status: item.qty === 0 ? "Zero Sales" : "Low Demand"
-    }));
-
-  // 4. Ambil data customer terdaftar & points
   const totalCustomers = await prisma.customer.count();
   const customerPointsAgg = await prisma.customer.aggregate({
     _sum: { points: true },
   });
   const totalActivePoints = customerPointsAgg._sum.points ?? 0;
 
-  const todayStr = new Date().toLocaleDateString("en-US", {
+  // Format String untuk Label
+  const isToday = new Date().toDateString() === targetDate.toDateString();
+  const displayDateStr = targetDate.toLocaleDateString("en-US", {
     weekday: "short",
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+  
+  // Format yyyy-mm-dd untuk value default input date
+  const isoDateStr = targetDate.toISOString().split('T')[0];
 
   return (
-    <div className="flex-1 p-8 lg:p-10 overflow-y-auto bg-[#fafbfc] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white">
+    <div className="flex-1 p-8 lg:p-10 overflow-y-auto bg-[#fafbfc] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white pb-24">
       
       {/* ── HEADER ─────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
@@ -132,16 +106,15 @@ export default async function DashboardPage() {
             Welcome back, {session.name.split(" ")[0]}
           </h1>
           <p className="text-[15px] font-medium text-gray-500 mt-1">
-            Here's what's happening at your stores today.
+            Here's what's happening at your stores on this selected date.
           </p>
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5 bg-white px-5 py-2.5 border border-gray-200/80 rounded-2xl text-[13px] font-bold text-gray-600 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.04)]">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" /></svg>
-            Today, {todayStr}
-          </div>
-          <button className="w-11 h-11 bg-white border border-gray-200/80 rounded-2xl flex items-center justify-center text-gray-500 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 relative">
+          {/* Komponen Client untuk Input Kalender */}
+          <DashboardDatePicker initialDate={isoDateStr} displayDate={displayDateStr} />
+          
+          <button className="w-12 h-[46px] bg-white border border-gray-200/80 rounded-2xl flex items-center justify-center text-gray-500 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 relative">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
             <span className="absolute top-2.5 right-3 w-2 h-2 bg-rose-500 border-2 border-white rounded-full"></span>
           </button>
@@ -150,19 +123,17 @@ export default async function DashboardPage() {
 
       {/* ── METRICS CARDS ──────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        {/* Card 1: Total Revenue */}
+        {/* Card 1: Total Revenue (Disesuaikan) */}
         <div className="bg-white border border-gray-100 p-7 rounded-[24px] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-[#6C4E31]/20 transition-colors duration-300">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-[12px] font-extrabold text-gray-400 uppercase tracking-widest">Gross Revenue</h3>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-bold">
-              +12% <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" /></svg>
-            </span>
           </div>
           <div>
             <h2 className="text-[36px] font-black text-[#1a1f36] tracking-tight leading-none mb-2 group-hover:text-[#6C4E31] transition-colors">
               Rp {totalSales.toLocaleString("id-ID")}
             </h2>
-            <p className="text-[13px] font-medium text-gray-400">vs yesterday</p>
+            {/* Teks diubah sesuai tanggal */}
+            <p className="text-[13px] font-medium text-gray-400">Total revenue generated {isToday ? "today" : `on ${displayDateStr}`}</p>
           </div>
           <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tl from-[#6C4E31]/5 to-transparent rounded-full blur-2xl"></div>
         </div>
@@ -176,20 +147,20 @@ export default async function DashboardPage() {
             <h2 className="text-[36px] font-black text-[#1a1f36] tracking-tight leading-none mb-2">
               {totalCompletedOrders}
             </h2>
-            <p className="text-[13px] font-medium text-gray-400">orders processed successfully</p>
+            <p className="text-[13px] font-medium text-gray-400">Total orders processed</p>
           </div>
         </div>
 
-        {/* Card 3: Avg Transaction Value */}
+        {/* Card 3: Total Items Sold (Pengganti Avg Ticket Size) */}
         <div className="bg-white border border-gray-100 p-7 rounded-[24px] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)] hover:border-gray-200 transition-colors duration-300">
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-[12px] font-extrabold text-gray-400 uppercase tracking-widest">Avg. Ticket Size</h3>
+            <h3 className="text-[12px] font-extrabold text-gray-400 uppercase tracking-widest">Total Items Sold</h3>
           </div>
           <div>
             <h2 className="text-[36px] font-black text-[#1a1f36] tracking-tight leading-none mb-2">
-              Rp {averageTicket.toLocaleString("id-ID")}
+              {totalItemsSold}
             </h2>
-            <p className="text-[13px] font-medium text-gray-400">average spending per order</p>
+            <p className="text-[13px] font-medium text-gray-400">Cups / items prepared {isToday ? "today" : "on selected date"}</p>
           </div>
         </div>
       </div>
@@ -206,8 +177,9 @@ export default async function DashboardPage() {
           <h3 className="text-[17px] font-black text-[#1a1f36] mb-6">Top 5 Best Sellers</h3>
           
           {topSellers.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 font-medium">
-              Belum ada penjualan tercatat.
+            <div className="py-10 text-center flex flex-col items-center gap-3">
+              <span className="text-3xl grayscale opacity-40">☕</span>
+              <p className="text-gray-400 font-medium text-[14px]">Belum ada penjualan tercatat di tanggal ini.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -251,8 +223,9 @@ export default async function DashboardPage() {
           <h3 className="text-[17px] font-black text-[#1a1f36] mb-6">Bottom 5 Slow Movers</h3>
           
           {bottomMovers.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 font-medium">
-              Belum ada produk untuk ditampilkan.
+            <div className="py-10 text-center flex flex-col items-center gap-3">
+               <span className="text-3xl grayscale opacity-40">📭</span>
+               <p className="text-gray-400 font-medium text-[14px]">Belum ada produk untuk ditampilkan.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -277,8 +250,8 @@ export default async function DashboardPage() {
                       <td className="py-4 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-extrabold tracking-wide border ${
                           item.qty === 0 
-                            ? 'bg-rose-50 text-rose-600 border-rose-100/50' // Merah muda jika nol
-                            : 'bg-amber-50 text-amber-600 border-amber-100/50' // Kuning jika sedikit
+                            ? 'bg-rose-50 text-rose-600 border-rose-100/50' 
+                            : 'bg-amber-50 text-amber-600 border-amber-100/50' 
                         }`}>
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
@@ -310,10 +283,9 @@ export default async function DashboardPage() {
               New Members
             </span>
             <h2 className="text-[36px] font-black text-[#1a1f36] tracking-tight leading-none mb-2">{totalCustomers}</h2>
-            <p className="text-[13px] font-medium text-gray-400">Total registered members</p>
+            <p className="text-[13px] font-medium text-gray-400">Total registered members all time</p>
           </div>
           
-          {/* Smooth SVG Sparkline */}
           <div className="w-32 h-16 relative">
             <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
               <path 

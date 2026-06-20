@@ -5,7 +5,7 @@
 // CRUD Produk + Modal CRUD Category (Pop-up)
 // =============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Category {
   id: string;
@@ -30,6 +30,12 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+
+  // ── Drag-to-Scroll State ──────────────────────────────────
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
   // ── Product Modal State ───────────────────────────────────
   const [isOpen, setIsOpen] = useState(false);
@@ -91,6 +97,25 @@ export default function ProductsPage() {
   const filteredProducts = products.filter(
     (p) => p.category?.name.toLowerCase() === selectedCategoryName.toLowerCase()
   );
+
+  // ── Drag-to-Scroll Handlers ───────────────────────────────
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // kecepatan scroll
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
 
   // ── Product Actions ───────────────────────────────────────
   async function handleToggleAvailable(id: string, currentVal: boolean) {
@@ -272,27 +297,40 @@ export default function ProductsPage() {
       </div>
 
       {/* ── TOOLBAR (TABS & BUTTONS) ─────────────────────── */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
-        {/* Category Tabs — dynamis dari DB */}
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide shrink-0">
-          {categories.map((cat) => {
-            const isActive = selectedCategoryName.toLowerCase() === cat.name.toLowerCase();
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategoryName(cat.name)}
-                className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
-                  isActive ? "bg-[#4A3B32] text-white border-[#4A3B32]" : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                {cat.name}
-              </button>
-            );
-          })}
+      <div className="flex items-start justify-between gap-6 mb-8 w-full">
+        
+        {/* Category Tabs dengan fitur Drag-to-Scroll */}
+        <div 
+          ref={scrollContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className="flex-1 overflow-x-auto scrollbar-hide pt-1 select-none"
+        >
+          {/* w-max memastikan elemen bisa ditarik walau melebih lebar layar */}
+          <div className="flex items-center gap-2.5 pb-3 w-max pr-8">
+            {categories.map((cat) => {
+              const isActive = selectedCategoryName.toLowerCase() === cat.name.toLowerCase();
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategoryName(cat.name)}
+                  className={`px-5 py-2.5 rounded-full text-[13.5px] font-extrabold whitespace-nowrap transition-all duration-300 ${
+                    isActive 
+                      ? "bg-[#6C4E31] text-white shadow-md" 
+                      : "bg-white text-gray-500 border border-gray-200 hover:text-[#1C1917] hover:bg-gray-50 shadow-sm"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        {/* Action Buttons - Posisi tetap di kanan */}
+        <div className="flex items-center gap-3 shrink-0 pt-1">
           {/* Button: Category */}
           <button
             onClick={openCategoryModal}
@@ -316,6 +354,7 @@ export default function ProductsPage() {
             Add New Item
           </button>
         </div>
+        
       </div>
 
       {/* ── MAIN DATA TABLE ────────────────────────────────── */}
