@@ -194,5 +194,24 @@ model StoreSetting {
   operatingHours String?  
   isStoreOpen    Boolean  @default(true) // Untuk fitur Buka/Tutup Toko Darurat
 
+  // ── UNTUK KEUANGAN & PEMBAYARAN ──
+  taxRate         Float    @default(0)    // Pajak (PPN) dalam persentase (cth: 11)
+  serviceCharge   Float    @default(0)    // Biaya layanan dalam persentase (cth: 5)
+  minOrderAmount  Int      @default(0)    // Minimal nominal belanja untuk bisa checkout
+  acceptCash      Boolean  @default(true) // Terima pembayaran tunai
+  acceptQris      Boolean  @default(true) // Terima QRIS/E-Wallet
+  acceptTransfer  Boolean  @default(false)// Terima Transfer Bank
+
+  // ── UNTUK ATURAN POIN (LOYALTY) ──
+  loyaltyEnabled     Boolean  @default(true)  // Fitur loyalty aktif/tidak
+  rewardPerAmount    Int      @default(10000) // Kelipatan belanja (Rp)
+  pointsEarned       Int      @default(1)     // Poin yang didapat dari kelipatan di atas
+  registrationPoints Int      @default(0)     // Bonus poin pendaftaran member baru
+  pointsExpiryDays   Int      @default(365)
+
+  // ── TAMBAHAN UNTUK STRUK KASIR ──
+  receiptFooter      String?  @db.Text        // Pesan di bawah struk
+  wifiPassword       String?                  // Info WiFi untuk pelanggan
+
   updatedAt   DateTime @updatedAt
 }
