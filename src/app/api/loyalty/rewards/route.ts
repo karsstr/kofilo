@@ -45,7 +45,10 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
-    const { name, code, pointCost } = body;
+    
+    // PERBAIKAN 1: Tambahkan qtyExchange agar ditangkap dari request body
+    const { name, code, pointCost, qtyExchange } = body;
+    
     if (!name || !code || pointCost === undefined) {
       return NextResponse.json({ message: "Nama, kode, dan point cost wajib diisi" }, { status: 400 });
     }
@@ -53,9 +56,17 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json({ message: "Kode menu sudah digunakan" }, { status: 400 });
     }
+    
+    // PERBAIKAN 2: Simpan qtyExchange ke database (default ke 1 jika kosong/0)
     const reward = await prisma.rewardProduct.create({
-      data: { name, code, pointCost: Number(pointCost), qtyExchange: 0 },
+      data: { 
+        name, 
+        code, 
+        pointCost: Number(pointCost), 
+        qtyExchange: qtyExchange ? Number(qtyExchange) : 1 
+      },
     });
+    
     return NextResponse.json({ reward }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/loyalty/rewards]", error);

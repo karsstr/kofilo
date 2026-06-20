@@ -54,6 +54,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const allProducts = await prisma.product.findMany({ include: { category: true } });
   
   // Logic perhitungan total semua waktu (ItemSales)
+  interface ItemSales {
+    name: string;
+    category: string;
+    qty: number;
+    revenue: number;
+  }
+
   const itemSalesMap: Record<string, ItemSales> = {};
   allProducts.forEach(p => {
     itemSalesMap[p.id] = { name: p.name, category: p.category?.name || "Lainnya", qty: 0, revenue: 0 };

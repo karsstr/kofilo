@@ -48,6 +48,12 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
 
   const { cart, addToCart } = useCartStore();
   const { customer, isLoggedIn } = usePwaAuthStore();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -236,7 +242,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             </div>
             <div>
               <h3 className="text-[14.5px] font-black text-white tracking-wide leading-tight">
-                {isLoggedIn() ? "Member Kofilo" : "Kofilo Loyalty"}
+                {isMounted && isLoggedIn() ? `Member ${customer?.name?.split(" ")[0] || 'Kofilo'}` : "Kofilo Loyalty"}
               </h3>
               {isLoggedIn() && (
                 <div className="flex items-center gap-1.5 mt-1">

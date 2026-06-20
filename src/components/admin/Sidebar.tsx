@@ -18,11 +18,15 @@ export default function Sidebar({ user }: Props) {
   const pathname = usePathname();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "" });
+  
+  // State untuk Dropdown Menu
   const [loyaltyOpen, setLoyaltyOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Auto-expand Loyalty Hub jika sedang di halaman loyalty
+  // Auto-expand Dropdown jika sedang berada di dalam halamannya
   useEffect(() => {
     if (pathname.startsWith("/cms/loyalty")) setLoyaltyOpen(true);
+    if (pathname.startsWith("/cms/settings")) setSettingsOpen(true);
   }, [pathname]);
 
   // Menangkap sinyal "justLoggedIn" dari halaman Login
@@ -122,7 +126,7 @@ export default function Sidebar({ user }: Props) {
               </svg>
             </button>
 
-            {/* Sub-menu */}
+            {/* Sub-menu Loyalty */}
             {loyaltyOpen && (
               <div className="mt-1 ml-4 pl-3 border-l-2 border-gray-100 space-y-1">
                 <Link href="/cms/loyalty/members"
@@ -151,18 +155,100 @@ export default function Sidebar({ user }: Props) {
             )}
           </div>
 
-          {/* Store Settings (placeholder) */}
-          <button
-            onClick={() => alert("Store Settings is currently a mock feature for visual representation.")}
-            className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[14.5px] text-[#6B7280] font-medium border-2 border-transparent hover:text-[#1a1f36] hover:bg-gray-50 transition-all duration-200 ease-out group"
-          >
-            <span className="text-gray-400 group-hover:text-[#1a1f36] transition-colors duration-200">
-              <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          {/* Store Settings — Collapsible */}
+          <div>
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[14.5px] transition-all duration-200 ease-out group border-2 ${
+                pathname.startsWith("/cms/settings")
+                  ? "bg-[#F7F7F8] text-[#1a1f36] font-extrabold border-[#1a1f36] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)]"
+                  : "text-[#6B7280] font-medium border-transparent hover:text-[#1a1f36] hover:bg-gray-50"
+              }`}
+            >
+              <span className={`transition-colors duration-200 ${pathname.startsWith("/cms/settings") ? "text-[#1a1f36]" : "text-gray-400 group-hover:text-[#1a1f36]"}`}>
+                <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </span>
+              <span className="flex-1 text-left">Store Settings</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"
+                className={`w-4 h-4 transition-transform duration-300 ${settingsOpen ? "rotate-180" : "rotate-0"}`}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
               </svg>
-            </span>
-            <span>Store Settings</span>
-          </button>
+            </button>
+
+            {/* Sub-menu Store Settings */}
+            {settingsOpen && (
+              <div className="mt-1 ml-4 pl-3 border-l-2 border-gray-100 space-y-1">
+                {/* 1. Store Profile */}
+                <Link href="/cms/settings/profile"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
+                    pathname === "/cms/settings/profile" || pathname === "/cms/settings"
+                      ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
+                      : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
+                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+                  </svg>
+                  Store Profile
+                </Link>
+
+                {/* 2. Jam & Operasional */}
+                <Link href="/cms/settings/operational"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
+                    pathname === "/cms/settings/operational"
+                      ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
+                      : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
+                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Location & Hours
+                </Link>
+
+                {/* 3. Keuangan & Pajak */}
+                <Link href="/cms/settings/financial"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
+                    pathname === "/cms/settings/financial"
+                      ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
+                      : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
+                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                  </svg>
+                  Finance & Taxes
+                </Link>
+
+                {/* 4. Aturan Poin */}
+                <Link href="/cms/settings/points"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
+                    pathname === "/cms/settings/points"
+                      ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
+                      : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
+                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                  </svg>
+                  Points Rule
+                </Link>
+
+                {/* 5. Struk Kasir */}
+                <Link href="/cms/settings/receipt"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
+                    pathname === "/cms/settings/receipt"
+                      ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
+                      : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
+                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  Receipt Config
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* User Access */}
           <Link href="/cms/users" className={navLinkClass("/cms/users")}>

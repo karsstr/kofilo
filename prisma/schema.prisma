@@ -176,3 +176,23 @@ model RewardProduct {
 
   @@map("reward_products")
 }
+
+model StoreSetting {
+  id          String   @id @default("kofilo-store-1")
+  storeName   String   @default("Craft Coffee")
+  description String?  @db.Text
+  phone       String?
+  email       String?
+  instagram   String?
+  tiktok      String?
+  logo        String?  @db.Text 
+  banner      String?  @db.Text
+
+  // ── UNTUK OPERASIONAL ──
+  address        String?  @db.Text
+  mapsUrl        String?  @db.Text
+  operatingHours String?  
+  isStoreOpen    Boolean  @default(true) // Untuk fitur Buka/Tutup Toko Darurat
+
+  updatedAt   DateTime @updatedAt
+}

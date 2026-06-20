@@ -1,10 +1,6 @@
 // =============================================================
 // API: POST /api/v1/pwa/auth/login
-// Autentikasi pelanggan PWA via nomor HP
-// Logic:
-//   - Cek tabel customers
-//   - Jika ada -> return data + JWT
-//   - Jika tidak ada -> buat baru (auto-register) -> return token
+// Autentikasi pelanggan PWA via nomor HP & Nama
 // =============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,7 +10,7 @@ import { signPwaToken } from "@/lib/pwa-jwt";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone } = body as { phone?: string };
+    const { phone, name } = body as { phone?: string; name?: string };
 
     // --- Validasi Input ---
     if (!phone || typeof phone !== "string") {
@@ -39,11 +35,19 @@ export async function POST(req: NextRequest) {
     });
 
     if (!customer) {
-      // Auto-register: buat customer baru
+      // Validasi tambahan untuk member baru: Harus punya nama
+      if (!name || name.trim() === "") {
+        return NextResponse.json(
+          { message: "Nama lengkap wajib diisi untuk pendaftaran awal" },
+          { status: 400 }
+        );
+      }
+
+      // Auto-register: buat customer baru dengan nama yang diinput
       customer = await prisma.customer.create({
         data: {
           phone: cleanPhone,
-          name: `Guest ${cleanPhone}`,
+          name: name.trim(),
           points: 0,
         },
       });

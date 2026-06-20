@@ -54,6 +54,10 @@ export default function ProductsPage() {
   const [catError, setCatError] = useState("");
   const [catSuccess, setCatSuccess] = useState("");
 
+  // Tambahan State untuk Hapus Kategori Kustom
+  const [catToDelete, setCatToDelete] = useState<Category | null>(null);
+  const [isCatDeleting, setIsCatDeleting] = useState(false);
+
   // Form tambah/edit kategori
   const [catEditId, setCatEditId] = useState<string | null>(null);
   const [catName, setCatName] = useState("");
@@ -67,6 +71,17 @@ export default function ProductsPage() {
     month: "short",
     day: "numeric",
   });
+
+  // Fungsi untuk menampilkan pesan otomatis hilang (Auto-hide)
+  const showCatMessage = (type: 'success' | 'error', msg: string) => {
+    if (type === 'success') setCatSuccess(msg);
+    else setCatError(msg);
+    
+    setTimeout(() => {
+      setCatSuccess("");
+      setCatError("");
+    }, 3500); // Pesan akan hilang dalam 3.5 detik
+  };
 
   // ── Fetch Data ────────────────────────────────────────────
   const fetchCategories = useCallback(async () => {
@@ -113,7 +128,7 @@ export default function ProductsPage() {
     if (!isDragging || !scrollContainerRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // kecepatan scroll
+    const walk = (x - startX) * 2; 
     scrollContainerRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -227,8 +242,11 @@ export default function ProductsPage() {
 
   async function handleCatSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!catName.trim()) { setCatError("Nama kategori wajib diisi"); return; }
-    setCatSubmitting(true); setCatError(""); setCatSuccess("");
+    if (!catName.trim()) { showCatMessage("error", "Nama kategori wajib diisi"); return; }
+    
+    setCatSubmitting(true); 
+    setCatError(""); setCatSuccess("");
+    
     try {
       let res: Response;
       if (catEditId) {
@@ -243,37 +261,46 @@ export default function ProductsPage() {
         });
       }
       const data = await res.json();
-      if (!res.ok) { setCatError(data.message || "Terjadi kesalahan"); return; }
+      if (!res.ok) { showCatMessage("error", data.message || "Terjadi kesalahan"); return; }
 
-      // Refresh categories
       const refreshed = await fetchCategories();
       setCategories(refreshed);
-      setCatSuccess(catEditId ? "Kategori berhasil diperbarui!" : "Kategori berhasil ditambahkan!");
+      showCatMessage("success", catEditId ? "Kategori berhasil diperbarui!" : "Kategori berhasil ditambahkan!");
       resetCatForm();
       setIsAddCatFormOpen(false);
     } catch {
-      setCatError("Terjadi kesalahan jaringan");
+      showCatMessage("error", "Terjadi kesalahan jaringan");
     } finally {
       setCatSubmitting(false);
     }
   }
 
-  async function handleCatDelete(cat: Category) {
-    if (!confirm(`Hapus kategori "${cat.name}"? Pastikan tidak ada produk di dalamnya.`)) return;
-    setCatError(""); setCatSuccess("");
+  // Fungsi Eksekusi Hapus Kategori Kustom
+  async function executeCatDelete() {
+    if (!catToDelete) return;
+    setIsCatDeleting(true);
+    
     try {
-      const res = await fetch(`/api/categories?id=${cat.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/categories?id=${catToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) { setCatError(data.message); return; }
+      
+      if (!res.ok) { 
+        showCatMessage("error", data.message); 
+        return; 
+      }
+      
       const refreshed = await fetchCategories();
       setCategories(refreshed);
-      // Jika tab aktif yang dihapus, pindah ke kategori pertama
-      if (selectedCategoryName === cat.name && refreshed.length > 0) {
+      if (selectedCategoryName === catToDelete.name && refreshed.length > 0) {
         setSelectedCategoryName(refreshed[0].name);
       }
-      setCatSuccess("Kategori berhasil dihapus.");
+      
+      showCatMessage("success", "Kategori berhasil dihapus.");
     } catch {
-      setCatError("Terjadi kesalahan jaringan");
+      showCatMessage("error", "Terjadi kesalahan jaringan");
+    } finally {
+      setIsCatDeleting(false);
+      setCatToDelete(null); // Tutup pop-up
     }
   }
 
@@ -306,9 +333,8 @@ export default function ProductsPage() {
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
-          className="flex-1 overflow-x-auto scrollbar-hide pt-1 select-none"
+          className={`flex-1 overflow-x-auto scrollbar-hide pt-1 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         >
-          {/* w-max memastikan elemen bisa ditarik walau melebih lebar layar */}
           <div className="flex items-center gap-2.5 pb-3 w-max pr-8">
             {categories.map((cat) => {
               const isActive = selectedCategoryName.toLowerCase() === cat.name.toLowerCase();
@@ -331,7 +357,6 @@ export default function ProductsPage() {
 
         {/* Action Buttons - Posisi tetap di kanan */}
         <div className="flex items-center gap-3 shrink-0 pt-1">
-          {/* Button: Category */}
           <button
             onClick={openCategoryModal}
             className="bg-white hover:bg-gray-50 text-[#1a1f36] border border-gray-200 px-5 py-3 rounded-2xl text-[14px] font-bold flex items-center gap-2 hover:border-[#6C4E31]/40 shadow-sm transition-all duration-300 whitespace-nowrap"
@@ -343,7 +368,6 @@ export default function ProductsPage() {
             Category
           </button>
 
-          {/* Button: Add New Item */}
           <button
             onClick={openAddModal}
             className="bg-[#1a1f36] hover:bg-[#2a314d] text-white px-6 py-3 rounded-2xl text-[14px] font-extrabold flex items-center gap-2.5 shadow-[0_8px_20px_-6px_rgba(26,31,54,0.3)] hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 whitespace-nowrap"
@@ -354,7 +378,6 @@ export default function ProductsPage() {
             Add New Item
           </button>
         </div>
-        
       </div>
 
       {/* ── MAIN DATA TABLE ────────────────────────────────── */}
@@ -539,7 +562,7 @@ export default function ProductsPage() {
           ============================================================ */}
       {isCatModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1a1f36]/40 backdrop-blur-sm">
-          <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-[0.96] duration-300 ease-out flex flex-col max-h-[85vh]">
+          <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-[0.96] duration-300 ease-out flex flex-col max-h-[85vh] relative">
 
             {/* Header */}
             <div className="flex justify-between items-center px-8 pt-8 pb-5 shrink-0">
@@ -552,13 +575,15 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            {/* Alert messages */}
+            {/* Notifikasi Error Statis (di atas list) */}
             {catError && (
               <div className="mx-8 mb-4 px-4 py-3 bg-rose-50 border border-rose-100 rounded-2xl text-[13px] font-semibold text-rose-600 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
                 {catError}
               </div>
             )}
+            
+            {/* Notifikasi Success Statis */}
             {catSuccess && (
               <div className="mx-8 mb-4 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-[13px] font-semibold text-emerald-600 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -567,7 +592,7 @@ export default function ProductsPage() {
             )}
 
             {/* Category Table */}
-            <div className="overflow-y-auto flex-1 px-8">
+            <div className="overflow-y-auto flex-1 px-8 relative">
               {catLoading ? (
                 <div className="py-10 flex justify-center"><svg className="animate-spin h-6 w-6 text-[#6C4E31]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
               ) : categories.length === 0 ? (
@@ -598,7 +623,9 @@ export default function ProductsPage() {
                               className="p-2 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all" title="Edit">
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
                             </button>
-                            <button onClick={() => handleCatDelete(cat)}
+                            
+                            {/* Tombol Hapus - Diubah memanggil setCatToDelete */}
+                            <button onClick={() => setCatToDelete(cat)}
                               className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all" title="Hapus">
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                             </button>
@@ -654,6 +681,36 @@ export default function ProductsPage() {
                 </form>
               )}
             </div>
+
+            {/* ── MODAL KONFIRMASI HAPUS KHUSUS CATEGORY ── */}
+            {catToDelete && (
+              <div className="absolute inset-0 z-[120] bg-transparent backdrop-blur-md rounded-[32px] flex items-center justify-center p-6 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-gray-100 text-center">
+                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  </div>
+                  <h3 className="text-xl font-black text-[#1a1f36] mb-2">Hapus Kategori?</h3>
+                  <p className="text-gray-500 text-[13px] font-medium mb-6">
+                    Yakin hapus <strong className="text-gray-800">{catToDelete.name}</strong>? Pastikan tidak ada produk di dalamnya.
+                  </p>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setCatToDelete(null)}
+                      className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button 
+                      onClick={executeCatDelete}
+                      disabled={isCatDeleting}
+                      className="flex-1 py-3 text-white font-bold bg-red-600 hover:bg-red-700 rounded-xl active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isCatDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>

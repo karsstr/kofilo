@@ -17,7 +17,7 @@ export default function CMSCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // State untuk Modal Form
+  // State untuk Modal Form (Tambah/Edit)
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -25,6 +25,19 @@ export default function CMSCategoriesPage() {
   // Data Form
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', isDrink: false });
+
+  // ── TAMBAHAN: State untuk Modal Hapus & Toast ──
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Toast State
+  const [toast, setToast] = useState({ show: false, type: "success" as "success" | "error", message: "" });
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ show: true, type, message });
+    setTimeout(() => setToast((t) => ({ ...t, show: false })), 3500);
+  };
 
   // ── FETCH DATA ──
   const fetchCategories = async () => {
@@ -44,7 +57,7 @@ export default function CMSCategoriesPage() {
     fetchCategories();
   }, []);
 
-  // ── BUKA MODAL ──
+  // ── BUKA MODAL FORM ──
   const openModal = (category?: Category) => {
     setErrorMsg('');
     if (category) {
@@ -55,6 +68,12 @@ export default function CMSCategoriesPage() {
       setFormData({ name: '', isDrink: false });
     }
     setShowModal(true);
+  };
+
+  // ── BUKA MODAL HAPUS ──
+  const openDeleteModal = (category: Category) => {
+    setDeletingCategory(category);
+    setShowDeleteModal(true);
   };
 
   // ── SIMPAN DATA (CREATE / UPDATE) ──
@@ -80,7 +99,8 @@ export default function CMSCategoriesPage() {
       if (!res.ok) throw new Error(data.message || 'Gagal menyimpan kategori');
 
       setShowModal(false);
-      fetchCategories(); // Refresh data
+      showToast("success", editingId ? "Kategori berhasil diperbarui!" : "Kategori berhasil ditambahkan!");
+      fetchCategories(); 
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
@@ -88,19 +108,27 @@ export default function CMSCategoriesPage() {
     }
   };
 
-  // ── HAPUS DATA ──
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Yakin ingin menghapus kategori "${name}"?`)) return;
+  // ── PROSES HAPUS DATA ──
+  const handleDeleteConfirm = async () => {
+    if (!deletingCategory) return;
+    setIsDeleting(true);
 
     try {
-      const res = await fetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/categories?id=${deletingCategory.id}`, { method: 'DELETE' });
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.message || 'Gagal menghapus');
       
+      setShowDeleteModal(false);
+      showToast("success", `Kategori "${deletingCategory.name}" berhasil dihapus.`);
       fetchCategories();
     } catch (err: any) {
-      alert(err.message); // Tampilkan alert jika gagal (misal karena masih ada produk)
+      // Jika gagal (misal karena masih ada produk), tampilkan toast error
+      setShowDeleteModal(false);
+      showToast("error", err.message);
+    } finally {
+      setIsDeleting(false);
+      setDeletingCategory(null);
     }
   };
 
@@ -170,7 +198,7 @@ export default function CMSCategoriesPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
                       </button>
                       <button 
-                        onClick={() => handleDelete(cat.id, cat.name)}
+                        onClick={() => openDeleteModal(cat)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Hapus"
                       >
@@ -185,7 +213,7 @@ export default function CMSCategoriesPage() {
         )}
       </div>
 
-      {/* ── MODAL FORM ── */}
+      {/* ── MODAL FORM TAMBAH/EDIT ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-[#1a1f36]/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -198,7 +226,8 @@ export default function CMSCategoriesPage() {
             
             <form onSubmit={handleSubmit} className="p-6">
               {errorMsg && (
-                <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl border border-red-100">
+                <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl border border-red-100 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
                   {errorMsg}
                 </div>
               )}
@@ -251,6 +280,52 @@ export default function CMSCategoriesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL KONFIRMASI HAPUS ── */}
+      {showDeleteModal && deletingCategory && (
+        <div className="fixed inset-0 z-[110] bg-[#1a1f36]/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Hapus Kategori?</h3>
+            <p className="text-gray-500 text-sm font-medium mb-6">
+              Anda yakin ingin menghapus kategori <span className="text-gray-800 font-bold">"{deletingCategory.name}"</span>? Aksi ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="flex-1 py-3 text-white font-bold bg-red-600 hover:bg-red-700 rounded-xl active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOAST NOTIFICATION ── */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-[200] animate-in slide-in-from-top-5 fade-in duration-300">
+          <div className={`rounded-[20px] p-4 pr-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border flex items-center gap-4 min-w-[300px] bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${toast.type === "success" ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"}`}>
+              {toast.type === "success" ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              )}
+            </div>
+            <p className="text-[14px] font-bold text-[#1a1f36] flex-1">{toast.message}</p>
           </div>
         </div>
       )}
