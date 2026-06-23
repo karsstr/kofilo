@@ -48,7 +48,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
 
         const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0) * 1.1;
 
-        const res = await fetch('/api/v1/payment/create', {
+        const res = await fetch('/api/v1/pwa/payment/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
