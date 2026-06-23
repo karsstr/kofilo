@@ -99,52 +99,57 @@ export async function POST(req: NextRequest) {
     }));
 
     // --- Loyalty: Hitung & tambah poin jika fitur aktif ---
-    const now = new Date();
-    const storeSetting = await prisma.storeSetting.findUnique({
-      where: { id: "kofilo-store-1" },
-    });
+    // Di-wrap try-catch agar SETIAP APAPUN yang terjadi, loyalty tidak pernah bikin order gagal
+    try {
+      const now = new Date();
+      const storeSetting = await prisma.storeSetting.findUnique({
+        where: { id: "kofilo-store-1" },
+      });
 
-    const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
-    const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
-    const pointsEarned = storeSetting?.pointsEarned ?? 1;
+      const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
+      const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
+      const pointsEarned = storeSetting?.pointsEarned ?? 1;
 
-    if (loyaltyEnabled && customerPayload.phone) {
-      const earnedPoints = Math.floor(totalAmount / rewardPerAmount) * pointsEarned;
-      if (earnedPoints > 0) {
-        // Bersihkan phone dan format prefix (+62)
-        let cleanPhone = customerPayload.phone.replace(/\D/g, "");
-        if (cleanPhone.startsWith("0")) {
-          cleanPhone = "62" + cleanPhone.slice(1);
-        } else if (cleanPhone.startsWith("8")) {
-          cleanPhone = "62" + cleanPhone;
-        }
+      if (loyaltyEnabled && customerPayload.phone) {
+        const earnedPoints = Math.floor(totalAmount / rewardPerAmount) * pointsEarned;
+        if (earnedPoints > 0) {
+          let cleanPhone = customerPayload.phone.replace(/\D/g, "");
+          if (cleanPhone.startsWith("0")) {
+            cleanPhone = "62" + cleanPhone.slice(1);
+          } else if (cleanPhone.startsWith("8")) {
+            cleanPhone = "62" + cleanPhone;
+          }
 
-        if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
-          const existingCustomer = await prisma.customer.findUnique({
-            where: { phone: cleanPhone },
-          });
-
-          if (existingCustomer) {
-            await prisma.customer.update({
-              where: { id: existingCustomer.id },
-              data: {
-                points: existingCustomer.points + earnedPoints,
-                updatedAt: now,
-              },
+          if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
+            const existingCustomer = await prisma.customer.findUnique({
+              where: { phone: cleanPhone },
             });
-          } else {
-            await prisma.customer.create({
-              data: {
-                phone: cleanPhone,
-                name: customerPayload.name || "-",
-                points: earnedPoints,
-                createdAt: now,
-                updatedAt: now,
-              },
-            });
+
+            if (existingCustomer) {
+              await prisma.customer.update({
+                where: { id: existingCustomer.id },
+                data: {
+                  points: existingCustomer.points + earnedPoints,
+                  updatedAt: now,
+                },
+              });
+            } else {
+              await prisma.customer.create({
+                data: {
+                  phone: cleanPhone,
+                  name: customerPayload.name || "-",
+                  points: earnedPoints,
+                  createdAt: now,
+                  updatedAt: now,
+                },
+              });
+            }
           }
         }
       }
+    } catch (loyaltyErr) {
+      // Loyalty gagal = jangan pernah bikin order gagal
+      console.warn("[loyalty] Gagal update poin:", loyaltyErr);
     }
 
     // --- Buat PwaOrder ---
