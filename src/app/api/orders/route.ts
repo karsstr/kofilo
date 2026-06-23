@@ -106,7 +106,14 @@ export async function POST(req: NextRequest) {
         }
 
         if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
-          const earnedPoints = Math.floor(calculatedTotal / 10000);
+          // Ambil konfigurasi poin dari StoreSetting (sumber kebenaran tunggal)
+          const storeSetting = await tx.storeSetting.findUnique({
+            where: { id: "kofilo-store-1" },
+          });
+          const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
+          const pointsEarnedSetting = storeSetting?.pointsEarned ?? 1;
+          const earnedPoints = Math.floor(calculatedTotal / rewardPerAmount) * pointsEarnedSetting;
+
           const existingCustomer = await tx.customer.findUnique({
             where: { phone: cleanPhone },
           });

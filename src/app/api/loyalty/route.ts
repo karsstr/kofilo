@@ -37,7 +37,6 @@ export async function GET(req: NextRequest) {
     if (id) {
       const customer = await prisma.customer.findUnique({
         where: { id },
-        include: { pwaOrders: { orderBy: { createdAt: "desc" }, take: 1 } },
       });
       if (!customer) {
         return NextResponse.json({ message: "Customer tidak ditemukan" }, { status: 404 });
@@ -48,7 +47,7 @@ export async function GET(req: NextRequest) {
         name: customer.name,
         phone: customer.phone,
         points: customer.points,
-        lastTransaction: customer.pwaOrders[0] ? formatFriendlyDate(customer.pwaOrders[0].createdAt) : "No transaction yet",
+        lastTransaction: formatFriendlyDate(customer.updatedAt),
       });
     }
 
@@ -80,8 +79,7 @@ export async function GET(req: NextRequest) {
     const [customers, totalItems] = await Promise.all([
       prisma.customer.findMany({
         where,
-        include: { pwaOrders: { orderBy: { createdAt: "desc" }, take: 1 } },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updatedAt: "desc" },
         take: limit,
         skip,
       }),
@@ -95,7 +93,7 @@ export async function GET(req: NextRequest) {
       name: c.name,
       phone: c.phone,
       points: c.points,
-      lastTransaction: c.pwaOrders[0] ? formatFriendlyDate(c.pwaOrders[0].createdAt) : "No transaction yet",
+      lastTransaction: formatFriendlyDate(c.updatedAt),
     }));
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
@@ -130,7 +128,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Nomor handphone wajib diisi" }, { status: 400 });
     }
 
-    const cleanPhone = phone.replace(/\D/g, "");
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
+    else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
+    if (!cleanPhone.startsWith("62")) cleanPhone = "62" + cleanPhone;
 
     // Cek duplikasi
     const existing = await prisma.customer.findUnique({
@@ -191,7 +192,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: "Member tidak ditemukan" }, { status: 404 });
     }
 
-    const cleanPhone = phone ? phone.replace(/\D/g, "") : existing.phone;
+    let cleanPhone = phone ? phone.replace(/\D/g, "") : existing.phone;
+    if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
+    else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
+    if (!cleanPhone.startsWith("62")) cleanPhone = "62" + cleanPhone;
 
     // Cek duplikasi jika no HP berubah
     if (cleanPhone !== existing.phone) {

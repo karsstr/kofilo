@@ -20,13 +20,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sanitasi: hanya angka, 10-13 digit
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.length < 10 || cleanPhone.length > 13) {
+    // Sanitasi: hanya angka
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10 || cleanPhone.length > 14) {
       return NextResponse.json(
-        { message: "Nomor HP harus terdiri dari 10-13 angka" },
+        { message: "Nomor HP tidak valid (min 10, max 14 angka)" },
         { status: 400 }
       );
+    }
+
+    // Normalisasi prefix Indonesia agar konsisten dengan POS
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62" + cleanPhone.slice(1);
+    } else if (cleanPhone.startsWith("8")) {
+      cleanPhone = "62" + cleanPhone;
+    }
+    if (!cleanPhone.startsWith("62")) {
+      cleanPhone = "62" + cleanPhone;
     }
 
     // --- Cek atau buat Customer ---

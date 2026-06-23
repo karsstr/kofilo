@@ -11,7 +11,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
   const { tableId } = use(params);
   const router = useRouter();
   const { cart, clearCart } = useCartStore();
-  const { customer } = usePwaAuthStore();
+  const { customer, setCustomer } = usePwaAuthStore();
 
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,6 +22,28 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
   const [qrString, setQrString] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [pollingQris, setPollingQris] = useState(false);
+
+  // Helper: Refresh poin customer dari backend agar sinkron dengan POS/Superadmin
+  const refreshCustomerPoints = async () => {
+    if (!customer?.token) return;
+    try {
+      const res = await fetch('/api/v1/pwa/customer/points', {
+        headers: { Authorization: `Bearer ${customer.token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.customer) {
+        setCustomer({
+          ...customer,
+          points: data.customer.points,
+          name: data.customer.name,
+          phone: data.customer.phone,
+        });
+      }
+    } catch {
+      // silent fail
+    }
+  };
 
   // Auto-create Komerce payment when QRIS selected
   useEffect(() => {
@@ -162,6 +184,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
       }
 
       clearCart();
+      await refreshCustomerPoints();
       router.push(`/${tableId}/order-status?orderId=${data.orderId}`);
     } catch {
       setError('Koneksi gagal. Silakan coba lagi.');
@@ -209,6 +232,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
         }
 
         clearCart();
+        await refreshCustomerPoints();
         router.push(`/${tableId}/order-status?orderId=${data.orderId}`);
       } catch {
         setError('Koneksi gagal. Silakan coba lagi.');
@@ -368,7 +392,8 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
         isOpen={showAuthDrawer} 
         onClose={() => setShowAuthDrawer(false)}
         context="checkout"
-        onSuccess={() => {
+        onSuccess={async () => {
+          await refreshCustomerPoints();
           setShowAuthDrawer(false);
         }}
       />
