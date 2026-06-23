@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/useCartStore';
 import { usePwaAuthStore } from '@/store/usePwaAuthStore';
+import AuthDrawer from '@/components/customer/AuthDrawer';
 
 export default function CustomerCheckoutPage({ params }: { params: Promise<{ tableId: string }> }) {
   const { tableId } = use(params);
@@ -21,6 +22,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [showAuthDrawer, setShowAuthDrawer] = useState(false);
 
   // Jika keranjang kosong, kembalikan ke halaman menu
   useEffect(() => {
@@ -67,6 +69,12 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
       const data = await res.json();
 
       if (!res.ok) {
+        // Jika 401 (token expired/invalid), buka AuthDrawer agar login ulang
+        if (res.status === 401) {
+          setShowAuthDrawer(true);
+          setIsProcessing(false);
+          return;
+        }
         setError(data.message || 'Gagal mengirim pesanan');
         setIsProcessing(false);
         return;
@@ -194,6 +202,16 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
         </div>
 
       </main>
+
+      <AuthDrawer 
+        isOpen={showAuthDrawer} 
+        onClose={() => setShowAuthDrawer(false)}
+        context="checkout"
+        onSuccess={() => {
+          // Setelah login ulang berhasil, coba confirm payment lagi
+          setShowAuthDrawer(false);
+        }}
+      />
 
       {/* FIXED BOTTOM BUTTON */}
       <div className="fixed bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-100 z-20">
