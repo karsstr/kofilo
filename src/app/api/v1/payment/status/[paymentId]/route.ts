@@ -8,10 +8,10 @@ import { getPaymentStatus } from "@/lib/komerce-payment";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { paymentId: string } }
+  { params }: { params: Promise<{ paymentId: string }> }
 ) {
   try {
-    const { paymentId } = params;
+    const { paymentId } = await params;
     const result = await getPaymentStatus(paymentId);
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
