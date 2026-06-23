@@ -137,7 +137,8 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt 
 
-  pwaOrders PwaOrder[]
+  pwaOrders  PwaOrder[]
+  redemptions PwaRedeem[]
 
   @@map("customers")
 }
@@ -174,8 +175,31 @@ model RewardProduct {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  redemptions PwaRedeem[]
+
   @@map("reward_products")
 }
+
+// -------------------------------------------------------------
+// PWA REDEEM (Riwayat Penukaran Poin)
+// -------------------------------------------------------------
+
+model PwaRedeem {
+  id               String   @id @default(cuid())
+  customerId       String
+  rewardProductId  String
+  pointSpent       Int      // Jumlah poin yang dihabiskan
+  redeemedAt       DateTime @default(now())
+
+  customer  Customer      @relation(fields: [customerId], references: [id])
+  reward    RewardProduct @relation(fields: [rewardProductId], references: [id])
+
+  @@map("pwa_redemptions")
+}
+
+// -------------------------------------------------------------
+// STORE SETTINGS (Single row — konfigurasi toko)
+// -------------------------------------------------------------
 
 model StoreSetting {
   id          String   @id @default("kofilo-store-1")
@@ -192,26 +216,28 @@ model StoreSetting {
   address        String?  @db.Text
   mapsUrl        String?  @db.Text
   operatingHours String?  
-  isStoreOpen    Boolean  @default(true) // Untuk fitur Buka/Tutup Toko Darurat
+  isStoreOpen    Boolean  @default(true)
 
   // ── UNTUK KEUANGAN & PEMBAYARAN ──
-  taxRate         Float    @default(0)    // Pajak (PPN) dalam persentase (cth: 11)
-  serviceCharge   Float    @default(0)    // Biaya layanan dalam persentase (cth: 5)
-  minOrderAmount  Int      @default(0)    // Minimal nominal belanja untuk bisa checkout
-  acceptCash      Boolean  @default(true) // Terima pembayaran tunai
-  acceptQris      Boolean  @default(true) // Terima QRIS/E-Wallet
-  acceptTransfer  Boolean  @default(false)// Terima Transfer Bank
+  taxRate         Float    @default(0)
+  serviceCharge   Float    @default(0)
+  minOrderAmount  Int      @default(0)
+  acceptCash      Boolean  @default(true)
+  acceptQris      Boolean  @default(true)
+  acceptTransfer  Boolean  @default(false)
 
   // ── UNTUK ATURAN POIN (LOYALTY) ──
-  loyaltyEnabled     Boolean  @default(true)  // Fitur loyalty aktif/tidak
+  loyaltyEnabled     Boolean  @default(true)
   rewardPerAmount    Int      @default(10000) // Kelipatan belanja (Rp)
-  pointsEarned       Int      @default(1)     // Poin yang didapat dari kelipatan di atas
-  registrationPoints Int      @default(0)     // Bonus poin pendaftaran member baru
+  pointsEarned       Int      @default(1)     // Poin yang didapat dari kelipatan
+  registrationPoints Int      @default(0)
   pointsExpiryDays   Int      @default(365)
 
-  // ── TAMBAHAN UNTUK STRUK KASIR ──
-  receiptFooter      String?  @db.Text        // Pesan di bawah struk
-  wifiPassword       String?                  // Info WiFi untuk pelanggan
+  // ── UNTUK STRUK KASIR ──
+  receiptFooter      String?  @db.Text
+  wifiPassword       String?
 
   updatedAt   DateTime @updatedAt
+
+  @@map("store_settings")
 }

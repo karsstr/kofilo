@@ -7,6 +7,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
+/**
+ * Hitung poin berdasarkan aturan yang diminta:
+ * "Dari Nominal yang customer bayar, kalau belakangnya 0-5 maka di
+ *  bulatkan ke bawah, 6-9 di bulatkan ke atas"
+ *
+ * Contoh rewardPerAmount=10000:
+ *   54.000 → 5 poin (digit 4, 0-5 → bawah)
+ *   56.000 → 6 poin (digit 6, 6-9 → atas)
+ *   62.000 → 6 poin (digit 2, 0-5 → bawah)
+ *   60.000 → 6 poin (digit 0, 0-5 → bawah)
+ *   55.000 → 5 poin (digit 5, 0-5 → bawah)
+ *   59.000 → 6 poin (digit 9, 6-9 → atas)
+ */
+function calculatePoints(totalAmount: number, perAmount: number, earned: number): number {
+  if (perAmount <= 0) return 0;
+  const base = Math.floor(totalAmount / perAmount);
+  const remainder = totalAmount % perAmount;
+  // Threshold: jika remainder >= 60% dari perAmount → dibulatkan ke atas
+  const threshold = Math.ceil(perAmount * 0.6);
+  const extra = remainder >= threshold ? 1 : 0;
+  return (base + extra) * earned;
+}
+
 // ─── GET: Riwayat order ───────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -89,6 +112,11 @@ export async function POST(req: NextRequest) {
       0
     );
 
+    // Ambil settings poin dari database
+    const settings = await prisma.storeSetting.findFirst();
+    const rewardPerAmount = settings?.rewardPerAmount ?? 10000;
+    const pointsEarned = settings?.pointsEarned ?? 1;
+
     // Tangkap waktu saat ini untuk disimpan sebagai "Last Transaction"
     const now = new Date();
 
@@ -98,7 +126,7 @@ export async function POST(req: NextRequest) {
         // 1. Bersihkan dari karakter aneh
         let cleanPhone = customerPhone.replace(/\D/g, "");
         
-        // 2. FORMAT PREFIX OTOMATIS: Pastikan selalu diawali "62" walau kasir cuma ngetik "8..."
+        // 2. FORMAT PREFIX OTOMATIS: Pastikan selalu diawali "62"
         if (cleanPhone.startsWith("0")) {
           cleanPhone = "62" + cleanPhone.slice(1);
         } else if (cleanPhone.startsWith("8")) {
@@ -106,26 +134,28 @@ export async function POST(req: NextRequest) {
         }
 
         if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
-          const earnedPoints = Math.floor(calculatedTotal / 10000);
+          // Hitung poin dengan aturan pembulatan baru
+          const earnedPoints = calculatePoints(calculatedTotal, rewardPerAmount, pointsEarned);
+
           const existingCustomer = await tx.customer.findUnique({
             where: { phone: cleanPhone },
           });
 
           if (existingCustomer) {
-            // JIKA CUSTOMER SUDAH ADA: Update poin DAN update waktu transaksi (updatedAt)
+            // UPDATE poin customer yang sudah ada
             await tx.customer.update({
               where: { id: existingCustomer.id },
               data: { 
                 points: existingCustomer.points + earnedPoints,
-                updatedAt: now // <--- INI PENTING UNTUK MENGUBAH LAST TRANSACTION
+                updatedAt: now,
               },
             });
           } else {
-            // JIKA CUSTOMER BARU: Buat baru dengan nama "-"
+            // BUAT customer baru
             await tx.customer.create({
               data: {
                 phone: cleanPhone,
-                name: "-", // <--- NAMA DIBUAT KOSONG (Strip)
+                name: "-", // Nama default, bisa di-update nanti via PWA login
                 points: earnedPoints,
                 createdAt: now,
                 updatedAt: now,
@@ -141,7 +171,7 @@ export async function POST(req: NextRequest) {
           paymentMethod: paymentMethod ?? "CASH",
           status: "COMPLETED",
           cashierId: session.id,
-          createdAt: now, // Pakai waktu yang sama agar sinkron
+          createdAt: now,
           orderItems: {
             create: items.map((item: { productId: string; quantity: number }) => ({
               productId: item.productId,

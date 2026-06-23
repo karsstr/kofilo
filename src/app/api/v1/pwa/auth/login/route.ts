@@ -20,9 +20,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sanitasi: hanya angka, 10-13 digit
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.length < 10 || cleanPhone.length > 13) {
+    // Sanitasi: hanya angka
+    let cleanPhone = phone.replace(/\D/g, "");
+
+    // Format nomor HP ke format 62 (konsisten dengan order route)
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62" + cleanPhone.slice(1);
+    } else if (cleanPhone.startsWith("8")) {
+      cleanPhone = "62" + cleanPhone;
+    }
+
+    if (cleanPhone.length < 10 || cleanPhone.length > 14) {
       return NextResponse.json(
         { message: "Nomor HP harus terdiri dari 10-13 angka" },
         { status: 400 }
@@ -30,6 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Cek atau buat Customer ---
+    let isNewMember = false;
     let customer = await prisma.customer.findUnique({
       where: { phone: cleanPhone },
     });
@@ -43,13 +52,26 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Auto-register: buat customer baru dengan nama yang diinput
+      // Ambil setting poin pendaftaran
+      const settings = await prisma.storeSetting.findFirst();
+      const bonusPoints = settings?.registrationPoints ?? 0;
+
+      // Auto-register: buat customer baru dengan bonus poin
       customer = await prisma.customer.create({
         data: {
           phone: cleanPhone,
           name: name.trim(),
-          points: 0,
+          points: bonusPoints,
         },
+      });
+      isNewMember = true;
+    }
+
+    // Jika customer sudah ada tapi masih bernama "-" (dari POS), update namanya
+    if (!isNewMember && customer.name === "-" && name && name.trim() !== "") {
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: { name: name.trim() },
       });
     }
 
