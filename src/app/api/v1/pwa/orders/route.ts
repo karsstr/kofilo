@@ -153,16 +153,25 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Buat PwaOrder ---
-    const pwaOrder = await prisma.pwaOrder.create({
-      data: {
-        tableId,
-        customerId: customerPayload.sub,
-        totalAmount,
-        status: "PENDING_CONFIRMATION",
-        paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
-        items: itemsSnapshot,
-      },
-    });
+    let pwaOrder;
+    try {
+      pwaOrder = await prisma.pwaOrder.create({
+        data: {
+          tableId,
+          customerId: customerPayload.sub,
+          totalAmount,
+          status: "PENDING_CONFIRMATION",
+          paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
+          items: itemsSnapshot,
+        },
+      });
+    } catch (createErr: any) {
+      console.error("[pwa/orders] Gagal create PwaOrder:", createErr);
+      return NextResponse.json(
+        { message: "Gagal menyimpan pesanan", error: createErr?.message || String(createErr) },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -174,7 +183,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("[POST /api/v1/pwa/orders]", error);
+    console.error("[POST /api/v1/pwa/orders] FATAL:", error);
     return NextResponse.json(
       { message: "Internal server error", error: error?.message || String(error) },
       { status: 500 }
