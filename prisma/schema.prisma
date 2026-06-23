@@ -152,6 +152,7 @@ model PwaOrder {
   customerId  String?
   totalAmount Int
   status      PwaOrderStatus @default(PENDING_CONFIRMATION)
+  paymentMethod PaymentMethod?
   items       Json
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

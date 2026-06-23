@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
 
     // --- Validasi Body ---
     const body = await req.json();
-    const { tableId, items } = body as {
+    const { tableId, items, paymentMethod } = body as {
       tableId?: string;
+      paymentMethod?: string;
       items?: Array<{
         productId: string;
         name: string;
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
         customerId: customerPayload.sub,
         totalAmount,
         status: "PENDING_CONFIRMATION",
+        paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
         items: itemsSnapshot,
       },
     });
@@ -117,10 +119,10 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("[POST /api/v1/pwa/orders]", error);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Internal server error", error: error?.message || String(error) },
       { status: 500 }
     );
   }
