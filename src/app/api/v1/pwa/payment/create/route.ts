@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
     console.error("[POST /api/v1/pwa/payment/create]", error);
+    const message = error?.message || "Gagal membuat pembayaran";
     return NextResponse.json(
-      { message: error?.message || "Gagal membuat pembayaran" },
+      { message },
       { status: 500 }
     );
   }
