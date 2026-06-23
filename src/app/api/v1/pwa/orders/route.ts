@@ -153,6 +153,8 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Buat PwaOrder ---
+    // Strategy: coba create dengan customerId dulu. Jika gagal (apapun alasannya),
+    // retry sekali tanpa customerId — order tetap harus masuk meskipunanonymous.
     let pwaOrder;
     try {
       pwaOrder = await prisma.pwaOrder.create({
@@ -166,11 +168,25 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (createErr: any) {
-      console.error("[pwa/orders] Gagal create PwaOrder:", createErr);
-      return NextResponse.json(
-        { message: "Gagal menyimpan pesanan", error: createErr?.message || String(createErr) },
-        { status: 500 }
-      );
+      console.warn("[pwa/orders] Gagal create dengan customerId, retry tanpa:", createErr?.code, createErr?.message);
+      try {
+        pwaOrder = await prisma.pwaOrder.create({
+          data: {
+            tableId,
+            customerId: undefined,
+            totalAmount,
+            status: "PENDING_CONFIRMATION",
+            paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
+            items: itemsSnapshot,
+          },
+        });
+      } catch (retryErr: any) {
+        console.error("[pwa/orders] Gagal total create PwaOrder:", retryErr);
+        return NextResponse.json(
+          { message: "Gagal menyimpan pesanan", error: retryErr?.message || String(retryErr) },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json(
