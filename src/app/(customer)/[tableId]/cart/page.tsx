@@ -3,7 +3,7 @@
 // =============================================================
 // Page: /{tableId}/cart
 // Halaman keranjang belanja PWA
-// PERUBAHAN: Setelah login, arahkan ke halaman Checkout
+// PERUBAHAN: Penyesuaian UI & Kalkulasi Harga untuk Item Reward
 // =============================================================
 
 import { useState, use } from 'react';
@@ -21,7 +21,12 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
 
   const [showAuthDrawer, setShowAuthDrawer] = useState(false);
 
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  // Perhitungan Subtotal: Pastikan item reward (isReward = true) dihitung Rp 0
+  const subtotal = cart.reduce((acc, item) => {
+    if (item.isReward) return acc; // Tambah 0
+    return acc + item.price * item.quantity;
+  }, 0);
+  
   const taxAndService = subtotal * 0.1;
   const total = subtotal + taxAndService;
 
@@ -75,12 +80,24 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
                 <div className="flex-1">
                   <p className="font-bold text-sm text-gray-900">{item.name}</p>
                   {item.variants && <p className="text-xs text-gray-400 mt-0.5">{item.variants}</p>}
-                  <p className="text-[#7a5c43] font-bold text-sm mt-1">Rp {item.price.toLocaleString('id-ID')}</p>
+                  
+                  {/* TAMPILAN HARGA KHUSUS REWARD */}
+                  {item.isReward ? (
+                     <div className="mt-1 flex items-center gap-2">
+                       <span className="text-xs text-gray-400 line-through">Rp {item.originalPrice?.toLocaleString('id-ID')}</span>
+                       <span className="text-emerald-500 font-bold text-sm">Gratis (Rp 0)</span>
+                     </div>
+                  ) : (
+                    <p className="text-[#7a5c43] font-bold text-sm mt-1">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</p>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1">
-                  <button onClick={() => handleDecrease(item.id, item.quantity)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">−</button>
-                  <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">+</button>
+                <div className="flex flex-col items-end gap-2">
+                  <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500 text-sm">✕</button>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1">
+                    <button onClick={() => handleDecrease(item.id, item.quantity)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">−</button>
+                    <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">+</button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -47,7 +47,9 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
   });
 
   const { cart, addToCart } = useCartStore();
-  const { customer, isLoggedIn } = usePwaAuthStore();
+  
+  // Panggil setCustomer dari store untuk update poin
+  const { customer, isLoggedIn, setCustomer } = usePwaAuthStore();
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
 
   const navRef = useRef<HTMLDivElement>(null);
 
+  // ── FETCH MENU ──
   useEffect(() => {
     let isMounted = true; 
     const fetchMenu = async () => {
@@ -106,6 +109,50 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
     fetchMenu();
     return () => { isMounted = false; };
   }, []);
+
+  // 🔥 FIX MASALAH 1: AUTO-UPDATE POIN & NAMA SECARA BERKALA 🔥
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId: NodeJS.Timeout;
+
+    const fetchFreshPoints = async () => {
+      // Ambil data token terbaru langsung dari memory Zustand (menghindari cache/stale data)
+      const currentCustomer = usePwaAuthStore.getState().customer;
+      if (!currentCustomer?.token) return;
+
+      try {
+        const res = await fetch('/api/v1/pwa/customer/points', {
+          headers: { Authorization: `Bearer ${currentCustomer.token}` },
+          cache: 'no-store'
+        });
+        
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          if (data.customer) {
+            // Hanya merubah state (setCustomer) jika poin atau namanya benar-benar berubah dari database
+            if (data.customer.points !== currentCustomer.points || data.customer.name !== currentCustomer.name) {
+              usePwaAuthStore.getState().setCustomer({
+                ...data.customer,
+                token: currentCustomer.token // Pastikan Token Tidak Hilang!
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Gagal auto-update poin:", error);
+      }
+    };
+
+    if (isLoggedIn()) {
+      fetchFreshPoints(); // Tarik data sekali saat pertama kali masuk ke menu
+      intervalId = setInterval(fetchFreshPoints, 10000); // Polling (cek terus) setiap 10 detik
+    }
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isLoggedIn]);
 
   // Menangkap sinyal "justLoggedIn" dari SessionStorage
   useEffect(() => {
@@ -253,7 +300,6 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             </div>
           </div>
           
-          {/* 🔥 PERBAIKAN: Hanya Tombol "Tukarkan" (atau "Daftar") 🔥 */}
           <div className="relative z-10">
             {isLoggedIn() ? (
               <button 

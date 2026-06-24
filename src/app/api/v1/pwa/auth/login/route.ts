@@ -61,6 +61,16 @@ export async function POST(req: NextRequest) {
           points: 0,
         },
       });
+    } else {
+      // 🔥 FIX MASALAH 2: Update nama jika sebelumnya dibuat dari POS (tanpa nama) 🔥
+      if (name && name.trim() !== "") {
+        if (customer.name === "-" || customer.name === "" || customer.name.toLowerCase().includes("guest")) {
+          customer = await prisma.customer.update({
+            where: { id: customer.id },
+            data: { name: name.trim() },
+          });
+        }
+      }
     }
 
     // --- Sign JWT ---

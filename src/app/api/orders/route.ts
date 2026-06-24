@@ -62,12 +62,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Cart tidak boleh kosong" }, { status: 400 });
     }
 
-    if (!totalAmount || totalAmount <= 0) {
-      return NextResponse.json({ message: "Total amount tidak valid" }, { status: 400 });
-    }
-
-    // Validasi semua produk tersedia & hitung ulang total (server-side verification)
-    const productIds = items.map((i: { productId: string }) => i.productId);
+    // 🔥 PERBAIKAN AMAN 1: Hapus akhiran '-reward' pada pencarian ID agar produk ditemukan
+    const productIds = items.map((i: any) => (i.productId || "").replace('-reward', ''));
     const products = await prisma.product.findMany({
       where: { id: { in: productIds }, isAvailable: true },
     });
@@ -81,10 +77,18 @@ export async function POST(req: NextRequest) {
 
     // Hitung ulang total server-side untuk keamanan
     const productMap = new Map(products.map((p) => [p.id, p]));
+    
+    // 🔥 PERBAIKAN AMAN 2: Jika item adalah Reward, harganya dipaksa Rp 0
     const calculatedTotal = items.reduce(
-      (sum: number, item: { productId: string; quantity: number }) => {
-        const product = productMap.get(item.productId);
-        return sum + (product?.price ?? 0) * item.quantity;
+      (sum: number, item: any) => {
+        const realId = (item.productId || "").replace('-reward', '');
+        const product = productMap.get(realId);
+        
+        // Deteksi apakah ini barang gratis
+        const isReward = item.isReward === true || (item.productId || "").includes('-reward') || item.price === 0;
+        const priceToUse = isReward ? 0 : (product?.price ?? 0);
+
+        return sum + priceToUse * item.quantity;
       },
       0
     );
@@ -112,6 +116,8 @@ export async function POST(req: NextRequest) {
           });
           const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
           const pointsEarnedSetting = storeSetting?.pointsEarned ?? 1;
+          
+          // 🔥 Point hanya dihitung dari calculatedTotal (yang mana barang reward nilainya sudah 0)
           const earnedPoints = Math.floor(calculatedTotal / rewardPerAmount) * pointsEarnedSetting;
 
           const existingCustomer = await tx.customer.findUnique({
@@ -124,7 +130,7 @@ export async function POST(req: NextRequest) {
               where: { id: existingCustomer.id },
               data: { 
                 points: existingCustomer.points + earnedPoints,
-                updatedAt: now // <--- INI PENTING UNTUK MENGUBAH LAST TRANSACTION
+                updatedAt: now 
               },
             });
           } else {
@@ -132,7 +138,7 @@ export async function POST(req: NextRequest) {
             await tx.customer.create({
               data: {
                 phone: cleanPhone,
-                name: "-", // <--- NAMA DIBUAT KOSONG (Strip)
+                name: "-", // NAMA DIBUAT KOSONG (Strip)
                 points: earnedPoints,
                 createdAt: now,
                 updatedAt: now,
@@ -148,13 +154,22 @@ export async function POST(req: NextRequest) {
           paymentMethod: paymentMethod ?? "CASH",
           status: "COMPLETED",
           cashierId: session.id,
-          createdAt: now, // Pakai waktu yang sama agar sinkron
+          createdAt: now,
           orderItems: {
-            create: items.map((item: { productId: string; quantity: number }) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              subTotal: (productMap.get(item.productId)?.price ?? 0) * item.quantity,
-            })),
+            create: items.map((item: any) => {
+              // 🔥 PERBAIKAN AMAN 3: Jangan timpa harga Rp 0 saat menyimpan ke database POS
+              const realId = (item.productId || "").replace('-reward', '');
+              const product = productMap.get(realId);
+              
+              const isReward = item.isReward === true || (item.productId || "").includes('-reward') || item.price === 0;
+              const priceToUse = isReward ? 0 : (product?.price ?? 0);
+
+              return {
+                productId: realId,
+                quantity: item.quantity,
+                subTotal: priceToUse * item.quantity,
+              };
+            }),
           },
         },
         include: {

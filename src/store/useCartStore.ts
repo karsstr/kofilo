@@ -1,5 +1,5 @@
-// src/store/useCartStore.ts
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface CartItem {
   id: string;
@@ -7,44 +7,63 @@ export interface CartItem {
   price: number;
   quantity: number;
   variants?: string;
+  isReward?: boolean;       // Menandakan ini barang gratisan
+  originalPrice?: number;   // Menyimpan harga asli untuk dicoret di UI
 }
 
-interface CartStore {
+export interface RedeemedReward {
+  id: string;
+  name: string;
+  originalPrice: number;
+  pointsCost: number;
+  image: string | null;
+}
+
+interface CartState {
   cart: CartItem[];
+  redeemedRewards: RedeemedReward[]; // Menyimpan tombol "Gunakan"
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  addRedeemedReward: (reward: RedeemedReward) => void;
+  removeRedeemedReward: (id: string) => void;
 }
 
-export const useCartStore = create<CartStore>((set) => ({
-  cart: [],
-  
-  // Fungsi tambah ke keranjang (jika item sama, jumlahnya ditambah)
-  addToCart: (item) => set((state) => {
-    const existingItem = state.cart.find((i) => i.id === item.id);
-    if (existingItem) {
-      return {
-        cart: state.cart.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + item.quantity } : i
-        ),
-      };
-    }
-    return { cart: [...state.cart, item] };
-  }),
-
-  // Fungsi hapus item dari keranjang
-  removeFromCart: (id) => set((state) => ({
-    cart: state.cart.filter((item) => item.id !== id)
-  })),
-
-  // Fungsi ubah jumlah (+ atau -) di halaman cart nanti
-  updateQuantity: (id, quantity) => set((state) => ({
-    cart: state.cart.map((item) => 
-      item.id === id ? { ...item, quantity } : item
-    )
-  })),
-
-  // Fungsi kosongkan keranjang (setelah sukses bayar)
-  clearCart: () => set({ cart: [] }),
-}));
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      cart: [],
+      redeemedRewards: [], // Awalnya kosong
+      addToCart: (item) => {
+        const { cart } = get();
+        const existing = cart.find((i) => i.id === item.id);
+        if (existing) {
+          set({
+            cart: cart.map((i) =>
+              i.id === item.id ? { ...i, quantity: i.quantity + item.quantity } : i
+            ),
+          });
+        } else {
+          set({ cart: [...cart, item] });
+        }
+      },
+      removeFromCart: (id) =>
+        set((state) => ({ cart: state.cart.filter((i) => i.id !== id) })),
+      updateQuantity: (id, quantity) =>
+        set((state) => ({
+          cart: state.cart.map((i) => (i.id === id ? { ...i, quantity } : i)),
+        })),
+      clearCart: () => set({ cart: [] }),
+      
+      // Aksi untuk alur Reward
+      addRedeemedReward: (reward) => set((state) => ({
+        redeemedRewards: [...state.redeemedRewards, reward]
+      })),
+      removeRedeemedReward: (id) => set((state) => ({
+        redeemedRewards: state.redeemedRewards.filter((r) => r.id !== id)
+      })),
+    }),
+    { name: 'kofilo-cart-storage' }
+  )
+);
