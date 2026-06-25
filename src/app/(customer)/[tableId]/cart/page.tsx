@@ -3,7 +3,7 @@
 // =============================================================
 // Page: /{tableId}/cart
 // Halaman keranjang belanja PWA
-// PERUBAHAN: Penyesuaian UI & Kalkulasi Harga untuk Item Reward
+// PERUBAHAN: Memperbaiki logic "Gunakan" saat item dihapus
 // =============================================================
 
 import { useState, use } from 'react';
@@ -16,26 +16,48 @@ import AuthDrawer from '@/components/customer/AuthDrawer';
 export default function CustomerCartPage({ params }: { params: Promise<{ tableId: string }> }) {
   const { tableId } = use(params);
   const router = useRouter();
-  const { cart, updateQuantity, removeFromCart } = useCartStore();
+  
+  const { cart, updateQuantity, removeFromCart, addRedeemedReward } = useCartStore();
   const { isLoggedIn } = usePwaAuthStore();
 
   const [showAuthDrawer, setShowAuthDrawer] = useState(false);
 
-  // Perhitungan Subtotal: Pastikan item reward (isReward = true) dihitung Rp 0
   const subtotal = cart.reduce((acc, item) => {
-    if (item.isReward) return acc; // Tambah 0
+    if (item.isReward) return acc;
     return acc + item.price * item.quantity;
   }, 0);
   
   const taxAndService = subtotal * 0.1;
   const total = subtotal + taxAndService;
 
-  const handleDecrease = (id: string, qty: number) => {
-    if (qty > 1) updateQuantity(id, qty - 1);
-    else removeFromCart(id);
+  // 🔥 PERBAIKAN LOGIKA: Ekstrak ID asli dengan aman
+  const handleRemoveItem = (item: any) => {
+    if (item.isReward) {
+      // 1. Ambil ID asli dengan membuang '-reward' dan varian lainnya
+      const originalId = item.id.split('-')[0];
+      
+      // 2. Kembalikan ke memori agar tombol "Gunakan" aktif lagi
+      addRedeemedReward({
+        id: originalId,
+        name: item.name.replace(' (Reward)', ''), // Bersihkan teks (Reward)
+        originalPrice: item.originalPrice || 0,
+        pointsCost: 0, 
+        image: null    
+      });
+    }
+    
+    // 3. Hapus dari keranjang (Zustand)
+    removeFromCart(item.id);
   };
 
-  // Klik tombol Lanjut Checkout
+  const handleDecrease = (item: any) => {
+    if (item.isReward || item.quantity <= 1) {
+      handleRemoveItem(item);
+    } else {
+      updateQuantity(item.id, item.quantity - 1);
+    }
+  };
+
   const handleCheckout = () => {
     if (!isLoggedIn()) {
       setShowAuthDrawer(true);
@@ -44,7 +66,6 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
     }
   };
 
-  // Setelah login berhasil dari drawer, arahkan ke checkout
   const handleAuthSuccess = () => {
     setShowAuthDrawer(false);
     router.push(`/${tableId}/checkout`);
@@ -81,7 +102,6 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
                   <p className="font-bold text-sm text-gray-900">{item.name}</p>
                   {item.variants && <p className="text-xs text-gray-400 mt-0.5">{item.variants}</p>}
                   
-                  {/* TAMPILAN HARGA KHUSUS REWARD */}
                   {item.isReward ? (
                      <div className="mt-1 flex items-center gap-2">
                        <span className="text-xs text-gray-400 line-through">Rp {item.originalPrice?.toLocaleString('id-ID')}</span>
@@ -92,11 +112,37 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500 text-sm">✕</button>
+                  {/* TOMBOL SILANG (X) */}
+                  <button 
+                    onClick={() => handleRemoveItem(item)} 
+                    className="text-gray-300 hover:text-red-500 text-sm"
+                  >
+                    ✕
+                  </button>
+                  
                   <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1">
-                    <button onClick={() => handleDecrease(item.id, item.quantity)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">−</button>
+                    {/* TOMBOL MINUS (-) */}
+                    <button 
+                      onClick={() => handleDecrease(item)} 
+                      className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base"
+                    >
+                      −
+                    </button>
+                    
                     <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center font-bold text-gray-500 text-base">+</button>
+                    
+                    {/* TOMBOL PLUS (+) TERKUNCI UNTUK REWARD */}
+                    <button 
+                      onClick={() => {
+                        if (!item.isReward) updateQuantity(item.id, item.quantity + 1);
+                      }} 
+                      disabled={item.isReward}
+                      className={`w-6 h-6 flex items-center justify-center font-bold text-base transition-colors ${
+                        item.isReward ? 'text-gray-200 cursor-not-allowed' : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               </div>

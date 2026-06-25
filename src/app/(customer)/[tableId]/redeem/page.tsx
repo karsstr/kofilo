@@ -9,8 +9,9 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
   const { tableId } = use(params);
   const router = useRouter();
   const { customer, setCustomer, isLoggedIn } = usePwaAuthStore();
-  const { redeemedRewards, addRedeemedReward, removeRedeemedReward, addToCart } = useCartStore();
+  const { cart, redeemedRewards, addRedeemedReward, removeRedeemedReward, addToCart } = useCartStore();
 
+  // Menyimpan daftar reward asli dari Superadmin
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -22,15 +23,18 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
 
     const fetchRewards = async () => {
       try {
-        const res = await fetch('/api/products');
+        // 🔥 UPDATE 1: API ini sekarang menembak ke tabel khusus Reward (RewardProduct)
+        const res = await fetch('/api/v1/pwa/rewards/list');
         if (res.ok) {
           const data = await res.json();
-          const rewardItems = data.products.filter((p: any) => p.isAvailable).map((p: any) => ({
-            ...p, pointsCost: Math.floor(p.price / 100) 
-          }));
-          setProducts(rewardItems);
+          // Data disalurkan utuh tanpa kalkulasi Math.floor
+          setProducts(data.rewards || []);
         }
-      } catch (error) { console.error(error); } finally { setLoading(false); }
+      } catch (error) { 
+        console.error(error); 
+      } finally { 
+        setLoading(false); 
+      }
     };
     fetchRewards();
   }, [isLoggedIn, router, tableId]);
@@ -41,7 +45,8 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
   };
 
   const handleTukarkan = async (product: any) => {
-    if ((customer?.points || 0) < product.pointsCost) return;
+    // Mengecek 'pointCost' yang ada di tabel RewardProduct
+    if ((customer?.points || 0) < product.pointCost) return;
     setLoadingId(product.id);
 
     try {
@@ -49,10 +54,12 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          // 🔥 PERBAIKAN UTAMA: WAJIB MENGIRIMKAN TOKEN TERBARU 🔥
           'Authorization': `Bearer ${customer?.token}` 
         },
-        body: JSON.stringify({ productId: product.id, pointsCost: product.pointsCost })
+        body: JSON.stringify({ 
+          productId: product.id, 
+          pointsCost: product.pointCost // Sinkronisasi properti ke backend
+        })
       });
       
       const data = await res.json();
@@ -60,7 +67,11 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
       if (res.ok) {
         setCustomer({ ...customer!, points: data.customer.points });
         addRedeemedReward({
-          id: product.id, name: product.name, originalPrice: product.price, pointsCost: product.pointsCost, image: product.image
+          id: product.id, 
+          name: product.name, 
+          originalPrice: 0, // Barang reward dari superadmin diasumsikan modal Rp0
+          pointsCost: product.pointCost, 
+          image: null
         });
         showToast('Berhasil Ditukar!', `${product.name} siap digunakan ke keranjang.`);
       } else {
@@ -103,42 +114,56 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
       </div>
 
       <div className="px-5 mt-8 flex flex-col gap-4">
-        {products.map((product) => {
-          const isRedeemed = redeemedRewards.find(r => r.id === product.id);
-          const canAfford = (customer?.points || 0) >= product.pointsCost;
+        {products.length === 0 ? (
+          <div className="text-center bg-white p-8 rounded-[24px] border border-gray-100 shadow-sm">
+             <span className="text-4xl block mb-3">🎁</span>
+             <p className="text-gray-500 font-bold text-[13px]">Belum ada reward yang tersedia saat ini.</p>
+          </div>
+        ) : (
+          products.map((product) => {
+            const isRedeemed = redeemedRewards.find(r => r.id === product.id);
+            // 🔥 UPDATE 2: Membaca 'pointCost' asli milik database Superadmin
+            const canAfford = (customer?.points || 0) >= product.pointCost;
+            
+            const isInCart = cart.find((c: any) => c.id === product.id + '-reward');
 
-          return (
-            <div key={product.id} className="bg-white rounded-[24px] p-4 flex gap-4 shadow-sm border border-gray-100">
-              <div className="w-24 h-24 rounded-[16px] bg-gray-50 flex-shrink-0 overflow-hidden">
-                {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">☕</div>}
+            return (
+              <div key={product.id} className="bg-white rounded-[24px] p-4 flex gap-4 shadow-sm border border-gray-100">
+                <div className="w-24 h-24 rounded-[16px] bg-gray-50 flex-shrink-0 overflow-hidden">
+                   <div className="w-full h-full flex items-center justify-center text-3xl">☕</div>
+                </div>
+                <div className="flex flex-col justify-center flex-1">
+                  <h3 className="font-extrabold text-[15px] leading-tight mb-1">{product.name}</h3>
+                  <p className="text-[#A67B5B] font-black text-[14px] mb-3">{product.pointCost} Poin</p>
+                  
+                  {isInCart ? (
+                    <button disabled className="bg-gray-100 text-gray-400 text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full cursor-not-allowed border border-gray-200">
+                      Di Keranjang
+                    </button>
+                  ) : isRedeemed ? (
+                    <button onClick={() => handleGunakan(isRedeemed)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full shadow-[0_4px_15px_-3px_rgba(16,185,129,0.5)] transition-all">
+                      Gunakan
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleTukarkan(product)} 
+                      disabled={!canAfford || loadingId === product.id}
+                      className={`text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full transition-all flex justify-center items-center ${canAfford ? 'bg-[#1C1917] text-white hover:bg-[#6C4E31] active:scale-95 shadow-md' : 'bg-gray-100 text-gray-400'}`}
+                    >
+                      {loadingId === product.id ? "Memproses..." : "Tukarkan"}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col justify-center flex-1">
-                <h3 className="font-extrabold text-[15px] leading-tight mb-1">{product.name}</h3>
-                <p className="text-[#A67B5B] font-black text-[14px] mb-3">{product.pointsCost} Poin</p>
-                
-                {isRedeemed ? (
-                  <button onClick={() => handleGunakan(isRedeemed)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full shadow-[0_4px_15px_-3px_rgba(16,185,129,0.5)] transition-all">
-                    Gunakan
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => handleTukarkan(product)} 
-                    disabled={!canAfford || loadingId === product.id}
-                    className={`text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full transition-all flex justify-center items-center ${canAfford ? 'bg-[#1C1917] text-white hover:bg-[#6C4E31] active:scale-95 shadow-md' : 'bg-gray-100 text-gray-400'}`}
-                  >
-                    {loadingId === product.id ? "Memproses..." : "Tukarkan"}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {toast.show && (
         <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-top-5 fade-in duration-300">
           <div className="bg-white rounded-[20px] p-4 pr-6 shadow-xl border border-emerald-100 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex justify-center items-center">✓</div>
+            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex justify-center items-center font-bold">✓</div>
             <div>
               <h4 className="font-black text-[15px] text-emerald-600">{toast.title}</h4>
               <p className="text-[13px] text-gray-500 font-medium">{toast.message}</p>
