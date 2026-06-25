@@ -36,7 +36,7 @@ export default function LoginPage() {
       // 🔥 KUNCI PERBAIKAN: Set flag justLoggedIn agar Toast muncul di halaman tujuan
       sessionStorage.setItem("justLoggedIn", "true");
 
-      if (data.user.role === "SUPER_ADMIN") {
+      if (data.user.role === "SUPER_ADMIN" || data.user.role === "MANAGER") {
         router.push("/cms/dashboard");
       } else {
         router.push("/cashier");

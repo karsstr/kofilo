@@ -1,6 +1,6 @@
 // =============================================================
 // Admin Layout — (admin)/layout.tsx
-// Wrapper untuk semua halaman CMS (hanya SUPER_ADMIN)
+// Wrapper untuk semua halaman CMS (SUPER_ADMIN & MANAGER)
 // =============================================================
 
 import { redirect } from "next/navigation";
@@ -12,11 +12,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // TODO: Add Auth check here
   // Middleware sudah handle redirect, ini sebagai double-guard di Server Component
   const session = await getSession();
+  const isAuthorized = session?.role === "SUPER_ADMIN" || session?.role === "MANAGER"
 
-  if (!session || session.role !== "SUPER_ADMIN") {
+  // 🔥 Izinkan SUPER_ADMIN dan MANAGER masuk 🔥
+  if (!session || (session.role !== "SUPER_ADMIN" && session.role !== "MANAGER")) {
     redirect("/login");
   }
 

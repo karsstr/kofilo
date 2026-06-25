@@ -2,7 +2,7 @@
 
 // =============================================================
 // User Access Page — (admin)/cms/users/page.tsx
-// CRUD Pengguna Kasir (Premium Theme)
+// CRUD Pengguna Kasir & Manager (Premium Theme)
 // =============================================================
 
 import { useState, useEffect } from "react";
@@ -23,6 +23,7 @@ export default function UserAccessPage() {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"CASHIER" | "MANAGER">("CASHIER");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -73,22 +74,23 @@ export default function UserAccessPage() {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, username, password }),
+        body: JSON.stringify({ name, username, password, role }), // Sertakan Role
       });
 
       const data = await res.json();
 
       if (res.ok) {
         setUsers((prev) => [data.user, ...prev]);
-        setSuccessMsg(`Kasir "${name}" berhasil ditambahkan!`);
+        setSuccessMsg(`Akun "${name}" berhasil ditambahkan!`);
         setName("");
         setUsername("");
         setPassword("");
+        setRole("CASHIER"); // Reset ke default
         
         // Hilangkan pesan sukses setelah 3 detik
         setTimeout(() => setSuccessMsg(""), 3000);
       } else {
-        setErrorMsg(data.message || "Gagal menambahkan kasir");
+        setErrorMsg(data.message || "Gagal menambahkan akun");
       }
     } catch (err) {
       setErrorMsg("Terjadi kesalahan jaringan");
@@ -98,17 +100,16 @@ export default function UserAccessPage() {
   }
 
   // Handle Delete User
-  async function handleDelete(id: string, cashierName: string) {
-    if (!confirm(`Are you sure you want to revoke access for "${cashierName}"?`)) return;
+  async function handleDelete(id: string, userName: string) {
+    if (!confirm(`Are you sure you want to revoke access for "${userName}"?`)) return;
 
     try {
       const res = await fetch(`/api/users?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         setUsers((prev) => prev.filter((u) => u.id !== id));
-        // Optional: show a small toast/alert here
       } else {
         const data = await res.json();
-        alert(data.message || "Gagal menghapus kasir");
+        alert(data.message || "Gagal menghapus akun");
       }
     } catch (err) {
       alert("Terjadi kesalahan jaringan");
@@ -125,7 +126,7 @@ export default function UserAccessPage() {
             User Access
           </h1>
           <p className="text-[15px] font-medium text-gray-500 mt-1">
-            Manage cashier credentials and system access permissions.
+            Manage system access for Cashiers and Managers.
           </p>
         </div>
         
@@ -143,13 +144,13 @@ export default function UserAccessPage() {
       {/* ── CONTENT GRID ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Form Panel: Add New Cashier */}
+        {/* Form Panel: Add New User */}
         <div className="bg-white border border-gray-100 p-8 rounded-[24px] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)] h-fit">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-[12px] bg-[#1a1f36]/5 flex items-center justify-center text-[#1a1f36]">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path d="M11 5a3 3 0 11-6 0 3 3 0 016 0zM2.615 16.428a1.224 1.224 0 01-.569-1.175 6.002 6.002 0 0111.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 018 18a9.953 9.953 0 01-5.385-1.572zM16.25 5.75a.75.75 0 00-1.5 0v2h-2a.75.75 0 000 1.5h2v2a.75.75 0 001.5 0v-2h2a.75.75 0 000-1.5h-2v-2z" /></svg>
             </div>
-            <h3 className="text-[18px] font-black text-[#1a1f36]">Register Cashier</h3>
+            <h3 className="text-[18px] font-black text-[#1a1f36]">Create Account</h3>
           </div>
 
           {/* Alerts */}
@@ -167,6 +168,30 @@ export default function UserAccessPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Account Role */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-extrabold text-gray-400 uppercase tracking-widest ml-1 mb-2">
+                Account Role
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className={`relative flex flex-col items-center p-3 rounded-2xl border-2 cursor-pointer transition-all ${role === 'CASHIER' ? 'border-[#6C4E31] bg-[#6C4E31]/5 ring-2 ring-[#6C4E31]/10' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}>
+                  <input type="radio" name="role" value="CASHIER" checked={role === 'CASHIER'} onChange={() => setRole('CASHIER')} className="hidden" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-6 h-6 mb-1 ${role === 'CASHIER' ? 'text-[#6C4E31]' : 'text-gray-400'}`}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+                  </svg>
+                  <span className={`text-[12px] font-bold ${role === 'CASHIER' ? 'text-[#6C4E31]' : 'text-gray-500'}`}>Cashier</span>
+                </label>
+                <label className={`relative flex flex-col items-center p-3 rounded-2xl border-2 cursor-pointer transition-all ${role === 'MANAGER' ? 'border-[#1a1f36] bg-[#1a1f36]/5 ring-2 ring-[#1a1f36]/10' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}>
+                  <input type="radio" name="role" value="MANAGER" checked={role === 'MANAGER'} onChange={() => setRole('MANAGER')} className="hidden" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-6 h-6 mb-1 ${role === 'MANAGER' ? 'text-[#1a1f36]' : 'text-gray-400'}`}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                  </svg>
+                  <span className={`text-[12px] font-bold ${role === 'MANAGER' ? 'text-[#1a1f36]' : 'text-gray-500'}`}>Manager</span>
+                </label>
+              </div>
+            </div>
+
             {/* Full Name */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">
@@ -193,7 +218,7 @@ export default function UserAccessPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="budi_cashier"
+                  placeholder="budi_account"
                   className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl pl-9 pr-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300"
                   required
                 />
@@ -219,7 +244,7 @@ export default function UserAccessPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#1a1f36] hover:bg-[#2a314d] text-white py-4 mt-2 rounded-2xl text-[14px] font-extrabold shadow-[0_8px_20px_-6px_rgba(26,31,54,0.3)] hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              className={`w-full text-white py-4 mt-2 rounded-2xl text-[14px] font-extrabold shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex justify-center items-center gap-2 ${role === 'MANAGER' ? 'bg-[#1a1f36] hover:bg-[#2a314d]' : 'bg-[#6C4E31] hover:bg-[#583f27]'}`}
             >
               {submitting ? (
                 <>
@@ -227,25 +252,25 @@ export default function UserAccessPage() {
                   Registering...
                 </>
               ) : (
-                "Add Cashier"
+                `Add ${role === 'MANAGER' ? 'Manager' : 'Cashier'}`
               )}
             </button>
           </form>
         </div>
 
-        {/* List Panel: Cashier Accounts */}
+        {/* List Panel: User Accounts */}
         <div className="lg:col-span-2 bg-white border border-gray-100 rounded-[24px] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
-          <h3 className="text-[18px] font-black text-[#1a1f36] mb-6">Cashier Accounts</h3>
+          <h3 className="text-[18px] font-black text-[#1a1f36] mb-6">Registered Accounts</h3>
           
           {loading ? (
             <div className="p-20 flex flex-col items-center justify-center text-gray-400 gap-4">
               <svg className="animate-spin h-8 w-8 text-[#6C4E31]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              <span className="font-bold text-sm">Loading cashiers...</span>
+              <span className="font-bold text-sm">Loading users...</span>
             </div>
           ) : users.length === 0 ? (
             <div className="p-20 flex flex-col items-center justify-center text-gray-400 gap-3 border-2 border-dashed border-gray-100 rounded-3xl">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-gray-300"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-              <p className="text-sm font-medium">No cashier accounts found. Create one using the form.</p>
+              <p className="text-sm font-medium">No accounts found. Create one using the form.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -260,11 +285,15 @@ export default function UserAccessPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50/80">
-                  {users.map((u) => (
+                  {users.map((u) => {
+                    const isManager = u.role === "MANAGER";
+                    const isSuperAdmin = u.role === "SUPER_ADMIN";
+                    
+                    return (
                     <tr key={u.id} className="group hover:bg-gray-50/50 transition-colors duration-200">
                       <td className="py-4 px-4 align-middle">
                         <div className="flex items-center gap-3.5">
-                          <div className="w-[38px] h-[38px] rounded-[10px] bg-gradient-to-tr from-gray-100 to-gray-200 flex items-center justify-center font-black text-[#1a1f36] text-[13px] border border-gray-200/50 shadow-sm">
+                          <div className={`w-[38px] h-[38px] rounded-[10px] flex items-center justify-center font-black text-[13px] shadow-sm border ${isSuperAdmin ? 'bg-gradient-to-tr from-amber-100 to-amber-200 text-amber-900 border-amber-300/50' : isManager ? 'bg-gradient-to-tr from-indigo-100 to-indigo-200 text-indigo-900 border-indigo-300/50' : 'bg-gradient-to-tr from-gray-100 to-gray-200 text-[#1a1f36] border-gray-200/50'}`}>
                             {u.name.split(" ").map(n => n[0]).join("").substring(0,2).toUpperCase()}
                           </div>
                           <span className="font-extrabold text-[14.5px] text-[#1a1f36]">{u.name}</span>
@@ -276,9 +305,15 @@ export default function UserAccessPage() {
                         </span>
                       </td>
                       <td className="py-4 px-4 align-middle">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-[#1a1f36] font-bold text-[11px] tracking-wider uppercase">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" /></svg>
-                          {u.role.toLowerCase()}
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] tracking-wider uppercase ${isSuperAdmin ? 'bg-amber-100 text-amber-700' : isManager ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-[#1a1f36]'}`}>
+                          {isSuperAdmin ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>
+                          ) : isManager ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" /></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" /></svg>
+                          )}
+                          {u.role.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="py-4 px-4 align-middle font-medium text-[13px] text-gray-400">
@@ -289,20 +324,22 @@ export default function UserAccessPage() {
                         })}
                       </td>
                       <td className="py-4 px-4 align-middle text-center">
-                        <div className="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <button
-                            onClick={() => handleDelete(u.id, u.name)}
-                            className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200"
-                            title="Revoke Access"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-[18px] h-[18px]">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
-                          </button>
-                        </div>
+                        {!isSuperAdmin && (
+                          <div className="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <button
+                              onClick={() => handleDelete(u.id, u.name)}
+                              className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200"
+                              title="Revoke Access"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-[18px] h-[18px]">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

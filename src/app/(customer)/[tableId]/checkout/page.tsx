@@ -153,12 +153,14 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
     setQrString(null);
 
     try {
+      // 🔥 PERBAIKAN: Tidak membuang ID '-reward' dan mengirim isReward 🔥
       const items = cart.map((item) => ({
-        productId: item.id.split('-')[0],
+        productId: item.id, // Dibiarkan utuh 
         name: item.name,
         price: item.price,
         quantity: item.quantity,
         variants: item.variants ?? null,
+        isReward: item.isReward,
       }));
 
       const res = await fetch('/api/v1/pwa/orders', {
@@ -201,12 +203,14 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
       setError('');
 
       try {
+        // 🔥 PERBAIKAN: Tidak membuang ID '-reward' dan mengirim isReward 🔥
         const items = cart.map((item) => ({
-          productId: item.id.split('-')[0],
+          productId: item.id, // Dibiarkan utuh
           name: item.name,
           price: item.price,
           quantity: item.quantity,
           variants: item.variants ?? null,
+          isReward: item.isReward,
         }));
 
         const res = await fetch('/api/v1/pwa/orders', {

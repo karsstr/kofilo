@@ -1,7 +1,6 @@
 // =============================================================
 // API: POST /api/v1/pwa/orders
 // Submit pesanan dari PWA ke backend
-// Wajib Bearer token dari customer
 // =============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
     try {
       customerPayload = await verifyPwaToken(token);
     } catch {
-      return NextResponse.json({ message: "Unauthorized: Token tidak valid atau sudah expired" }, { status: 401 });
+      return NextResponse.json({ message: "Unauthorized: Token tidak valid atau expired" }, { status: 401 });
     }
 
     // --- Validasi Body ---
@@ -34,73 +33,106 @@ export async function POST(req: NextRequest) {
         quantity: number;
         variants?: string;
         isReward?: boolean;
-        originalPrice?: number;
       }>;
+      totalAmount?: number; // Menangkap totalAmount dari PWA
     };
 
     if (!tableId || typeof tableId !== "string") return NextResponse.json({ message: "tableId wajib diisi" }, { status: 400 });
     if (!items || !Array.isArray(items) || items.length === 0) return NextResponse.json({ message: "Keranjang kosong" }, { status: 400 });
 
-    // Ekstrak ID Asli
-    const productIdsReal = [...new Set(items.map((i) => {
-      const rawId = i.productId || i.id || "";
-      return rawId.replace('-reward', '');
-    }))];
+    const normalIds: string[] = [];
+    const rewardIds: string[] = [];
 
-    // --- Hitung Total (server-side, ambil harga dari DB) ---
-    const dbProducts = await prisma.product.findMany({
-      where: { id: { in: productIdsReal }, isAvailable: true },
-      select: { id: true, price: true, name: true },
+    // Memilah ID
+    items.forEach((item) => {
+      const rawId = item.productId || item.id || "";
+      const realId = rawId.split('-')[0];
+      
+      if (item.isReward === true || rawId.includes('-reward') || (item.price === 0 && item.name.includes('Reward'))) {
+        rewardIds.push(realId);
+      } else {
+        normalIds.push(realId);
+      }
     });
 
-    if (dbProducts.length !== productIdsReal.length) {
-      return NextResponse.json({ message: "Beberapa produk tidak tersedia" }, { status: 400 });
+    const uniqueNormalIds = [...new Set(normalIds)];
+    const uniqueRewardIds = [...new Set(rewardIds)];
+
+    let productPriceMap = new Map<string, number>();
+    
+    // A. Cek produk biasa
+    if (uniqueNormalIds.length > 0) {
+      const dbProducts = await prisma.product.findMany({
+        where: { id: { in: uniqueNormalIds }, isAvailable: true },
+        select: { id: true, price: true, name: true },
+      });
+
+      if (dbProducts.length !== uniqueNormalIds.length) {
+        return NextResponse.json({ message: "Beberapa menu berbayar tidak tersedia" }, { status: 400 });
+      }
+      dbProducts.forEach(p => productPriceMap.set(p.id, p.price));
     }
 
-    const productPriceMap = new Map(dbProducts.map((p) => [p.id, p.price]));
+    // B. Cek produk reward
+    if (uniqueRewardIds.length > 0) {
+      const dbRewards = await prisma.rewardProduct.findMany({
+        where: { id: { in: uniqueRewardIds } },
+        select: { id: true, name: true },
+      });
 
-    let totalAmount = 0;
+      if (dbRewards.length !== uniqueRewardIds.length) {
+        return NextResponse.json({ message: "Beberapa menu penukaran (reward) tidak ditemukan" }, { status: 400 });
+      }
+      dbRewards.forEach(r => productPriceMap.set(r.id, 0)); 
+    }
+
+    const storeSetting = await prisma.storeSetting.findUnique({
+      where: { id: "kofilo-store-1" },
+    });
+
+    let subTotalAmount = 0; 
     
-    // 🔥 PERBAIKAN UTAMA: Deteksi cerdas barang Reward 🔥
     const itemsSnapshot = items.map((item) => {
       const rawId = item.productId || item.id || "";
-      const realId = rawId.replace('-reward', '');
+      const realId = rawId.split('-')[0];
+      const isRewardItem = item.isReward === true || rawId.includes('-reward') || (item.price === 0 && item.name.includes('Reward'));
+      
       const dbPrice = productPriceMap.get(realId) ?? 0;
       
-      // Jika Frontend lupa mengirim isReward, kita deteksi dari ID (ada -reward) atau harga 0
-      const isRewardItem = item.isReward === true || rawId.includes('-reward') || item.price === 0;
+      // Mengambil harga dari frontend (yang wajar), lalu langsung dikalikan 1.10 agar nilainya sama dengan Kasir
+      const basePrice = isRewardItem ? 0 : (item.price >= dbPrice ? item.price : dbPrice);
       
-      // Paksa harga jadi 0 jika terdeteksi sebagai Reward
-      const finalPrice = isRewardItem ? 0 : (item.price > dbPrice && item.price <= dbPrice * 2 ? item.price : dbPrice);
-      const subTotal = finalPrice * item.quantity;
+      // 🔥 PERBAIKAN: Suntikkan pajak 10% ke harga satuan 🔥
+      const finalPriceWithTax = isRewardItem ? 0 : Math.round(basePrice * 1.10);
       
-      totalAmount += subTotal;
+      // Subtotal per baris
+      const subTotal = finalPriceWithTax * item.quantity;
+      
+      subTotalAmount += subTotal;
 
       return {
-        productId: realId,
+        productId: realId, 
         name: item.name + (isRewardItem && !item.name.includes('Reward') ? " (Reward)" : ""), 
-        price: finalPrice,    // Rp 0 untuk Kasir
+        price: finalPriceWithTax, // Harga yang sudah dipajak (misal: 16.500) tersimpan di sini
         quantity: item.quantity,
         variants: item.variants ?? null,
-        subTotal: subTotal,   // Rp 0 untuk Kasir
+        subTotal: subTotal,
         isReward: isRewardItem
       };
     });
 
-    // --- Loyalty: Hitung & tambah poin jika fitur aktif ---
-    try {
-      const now = new Date();
-      const storeSetting = await prisma.storeSetting.findUnique({
-        where: { id: "kofilo-store-1" },
-      });
+    // Mengambil totalAmount dari Frontend jika ada
+    const finalTotalAmount = body.totalAmount ?? Math.round(subTotalAmount);
 
+    // --- Loyalty: Hitung & tambah poin ---
+    try {
       const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
       const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
       const pointsEarned = storeSetting?.pointsEarned ?? 1;
 
       if (loyaltyEnabled && customerPayload.phone) {
-        // Poin HANYA dihitung dari Total Uang yang dibayar (Barang reward sudah Rp 0, jadi tidak nambah poin)
-        const earnedPoints = Math.floor(totalAmount / rewardPerAmount) * pointsEarned;
+        // Hitung poin dari total belanja akhir
+        const earnedPoints = Math.floor(finalTotalAmount / rewardPerAmount) * pointsEarned;
         
         if (earnedPoints > 0) {
           let cleanPhone = customerPayload.phone.replace(/\D/g, "");
@@ -108,6 +140,7 @@ export async function POST(req: NextRequest) {
           else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
 
           if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
+            const now = new Date();
             await prisma.customer.upsert({
               where: { phone: cleanPhone },
               update: { points: { increment: earnedPoints }, updatedAt: now },
@@ -126,17 +159,17 @@ export async function POST(req: NextRequest) {
       console.warn("[loyalty] Gagal update poin:", loyaltyErr);
     }
 
-    // --- Buat PwaOrder (Pesanan Online untuk Kasir) ---
+    // --- Buat PwaOrder ---
     let pwaOrder;
     try {
       pwaOrder = await prisma.pwaOrder.create({
         data: {
           tableId,
           customerId: customerPayload.sub,
-          totalAmount, // Sudah Rp 0 jika semua barang adalah reward
+          totalAmount: finalTotalAmount, 
           status: "PENDING_CONFIRMATION",
           paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
-          items: itemsSnapshot, // JSON ini yang dibaca Kasir, harganya sudah pasti 0
+          items: itemsSnapshot, 
         },
       });
     } catch (createErr) {
@@ -144,7 +177,7 @@ export async function POST(req: NextRequest) {
         data: {
           tableId,
           customerId: undefined,
-          totalAmount,
+          totalAmount: finalTotalAmount, 
           status: "PENDING_CONFIRMATION",
           paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
           items: itemsSnapshot,
@@ -157,7 +190,7 @@ export async function POST(req: NextRequest) {
         message: "Pesanan berhasil dibuat",
         orderId: pwaOrder.id,
         status: pwaOrder.status,
-        totalAmount: pwaOrder.totalAmount,
+        totalAmount: pwaOrder.totalAmount, 
       },
       { status: 201 }
     );

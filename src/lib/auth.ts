@@ -31,8 +31,8 @@ export async function getSession(): Promise<SessionUser | null> {
     const raw = cookieStore.get(SESSION_COOKIE)?.value;
     if (!raw) return null;
 
-    // TODO: Verifikasi JWT / decrypt session di sini
-    const session = JSON.parse(Buffer.from(raw, "base64").toString("utf-8"));
+    // Gunakan atob (bawaan web) untuk decode base64
+    const session = JSON.parse(atob(raw));
     return session as SessionUser;
   } catch {
     return null;

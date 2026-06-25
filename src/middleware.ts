@@ -8,7 +8,7 @@ import type { NextRequest } from "next/server";
 
 // --- Route Configuration ---
 
-/** Route yang hanya bisa diakses oleh SUPER_ADMIN */
+/** Route yang hanya bisa diakses oleh SUPER_ADMIN & MANAGER */
 const ADMIN_ROUTES = ["/cms"];
 
 /** Route yang hanya bisa diakses oleh CASHIER (atau semua role yang login) */
@@ -63,26 +63,34 @@ export function middleware(request: NextRequest) {
   // Parse session
   let session: { role: string } | null = null;
   try {
-    session = JSON.parse(
-      Buffer.from(sessionCookie, "base64").toString("utf-8")
-    );
-  } catch {
+    // 🔥 PERBAIKAN: Gunakan atob langsung (tanpa Buffer)
+    session = JSON.parse(atob(sessionCookie));
+  } catch (e) {
+    console.error("Middleware Session Parse Error:", e);
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const role = session?.role;
 
-  // Guard Admin Routes
+  // 🔥 Guard Admin Routes (Untuk Super Admin & Manager) 🔥
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
-  if (isAdminRoute && role !== "SUPER_ADMIN") {
-    return NextResponse.redirect(new URL("/cashier", request.url));
+  if (isAdminRoute) {
+    // 1. Jika bukan Super Admin atau Manager, tendang ke halaman kasir
+    if (role !== "SUPER_ADMIN" && role !== "MANAGER") {
+      return NextResponse.redirect(new URL("/cashier", request.url));
+    }
+
+    // 2. Khusus MANAGER: Jika mencoba mengakses User Access (/cms/users), tendang ke dashboard
+    if (pathname.startsWith("/cms/users") && role === "MANAGER") {
+      return NextResponse.redirect(new URL("/cms/dashboard", request.url));
+    }
   }
 
-  // Guard Cashier Routes
+  // Guard Cashier Routes (Semua role boleh jadi kasir)
   const isCashierRoute = CASHIER_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
-  if (isCashierRoute && role !== "CASHIER" && role !== "SUPER_ADMIN") {
+  if (isCashierRoute && role !== "CASHIER" && role !== "SUPER_ADMIN" && role !== "MANAGER") {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
