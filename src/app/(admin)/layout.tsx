@@ -7,8 +7,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSessionClient } from "@/lib/auth-client";
 import Sidebar from "@/components/admin/Sidebar";
+import { SessionUser } from "@/lib/auth";
 
 export default function AdminLayout({
   children,
@@ -16,30 +16,36 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    function checkAuth() {
-      const s = getSessionClient();
-
-      // 🔥 Izinkan SUPER_ADMIN dan MANAGER masuk 🔥
-      const role = s?.role as string | undefined;
-      const allowedRoles: string[] = ["SUPER_ADMIN", "MANAGER"];
-      if (!role || !allowedRoles.includes(role)) {
-        router.push("/login");
-      } else {
-        setSession(s);
+    async function checkAuth() {
+      try {
+        // 🔥 FIX: Panggil API untuk baca session (karena cookie httpOnly)
+        const res = await fetch("/api/auth/debug");
+        const data = await res.json();
+        
+        if (data.session && data.hasSession) {
+          const role = data.session.role as string;
+          const allowedRoles: string[] = ["SUPER_ADMIN", "MANAGER"];
+          if (allowedRoles.includes(role)) {
+            setSession(data.session);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("[AdminLayout] Auth check failed:", err);
       }
+
+      router.push("/login");
     }
     checkAuth();
   }, [router]);
-
-  if (!session) {
-    return (
-      <main className="flex-1 p-6 overflow-auto">
-        {children}
-      </main>
-    );
+  
+  if (loading || !session) {
+    return <div className="min-h-screen bg-gray-100" />;
   }
 
   return (
