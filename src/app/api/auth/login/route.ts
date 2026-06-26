@@ -57,10 +57,10 @@ export async function POST(req: NextRequest) {
     });
 
     response.cookies.set("pos_session", sessionValue, {
-      httpOnly: true,       // tidak bisa diakses JS client
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 8, // 8 jam
+      maxAge: 60 * 60 * 8,
       path: "/",
     });
 
