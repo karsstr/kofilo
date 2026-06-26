@@ -31,8 +31,8 @@ export async function getSession(): Promise<SessionUser | null> {
     const raw = cookieStore.get(SESSION_COOKIE)?.value;
     if (!raw) return null;
 
-    // Gunakan atob (bawaan web) untuk decode base64
-    const session = JSON.parse(atob(raw));
+    // Gunakan Buffer (tersedia di Edge runtime) untuk decode base64
+    const session = JSON.parse(Buffer.from(raw, "base64").toString("utf-8"));
     return session as SessionUser;
   } catch {
     return null;

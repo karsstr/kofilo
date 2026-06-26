@@ -64,8 +64,8 @@ export function middleware(request: NextRequest) {
   // Parse session
   let session: { role: string } | null = null;
   try {
-    // 🔥 PERBAIKAN: Gunakan atob langsung (tanpa Buffer)
-    session = JSON.parse(atob(sessionCookie));
+    // Decode base64 session cookie
+    session = JSON.parse(Buffer.from(sessionCookie, "base64").toString("utf-8"));
   } catch (e) {
     console.error("Middleware Session Parse Error:", e);
     return NextResponse.redirect(new URL("/login", request.url));
