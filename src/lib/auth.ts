@@ -29,17 +29,19 @@ export async function getSession(): Promise<SessionUser | null> {
   try {
     const cookieStore = await cookies();
     const raw = cookieStore.get(SESSION_COOKIE)?.value;
-    if (!raw) return null;
-
-    // Support both base64-encoded dan raw JSON (untuk backward compatibility)
-    let session: SessionUser;
-    if (raw.startsWith("{") || raw.startsWith("[")) {
-      session = JSON.parse(raw);
-    } else {
-      session = JSON.parse(Buffer.from(raw, "base64").toString("utf-8"));
+    if (!raw) {
+      console.log("[getSession] No cookie found");
+      return null;
     }
-    return session as SessionUser;
-  } catch {
+
+    console.log("[getSession] Raw cookie value:", raw);
+    
+    // Cookie stored as plain JSON string
+    const parsed = JSON.parse(raw) as SessionUser;
+    console.log("[getSession] Parsed session:", parsed);
+    return parsed;
+  } catch (e) {
+    console.error("[getSession] Parse error:", e);
     return null;
   }
 }
@@ -48,8 +50,8 @@ export async function getSession(): Promise<SessionUser | null> {
  * Serialize session ke base64 string (simulasi — ganti dengan JWT di production)
  */
 export function serializeSession(user: SessionUser): string {
-  // TODO: Ganti dengan JWT signing menggunakan AUTH_SECRET
-  return Buffer.from(JSON.stringify(user)).toString("base64");
+  // SIMPLIFIED: Store as plain JSON (readable + backward compatible)
+  return JSON.stringify(user);
 }
 
 /**

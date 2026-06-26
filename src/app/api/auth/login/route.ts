@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
       user: sessionUser,
     });
 
-    response.cookies.set("pos_session", sessionValue, {
+    // Set cookie with proper headers
+    response.cookies.set({
+      name: "pos_session",
+      value: sessionValue,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
