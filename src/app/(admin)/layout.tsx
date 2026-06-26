@@ -34,6 +34,14 @@ export default function AdminLayout({
     checkAuth();
   }, [router]);
 
+  if (!session) {
+    return (
+      <main className="flex-1 p-6 overflow-auto">
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar navigasi admin */}
