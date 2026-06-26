@@ -64,7 +64,7 @@ export function middleware(request: NextRequest) {
   // Parse session
   let session: { role: string } | null = null;
   try {
-    // Decode base64 session cookie
+    // Decode base64 session cookie (consistent with auth.ts)
     session = JSON.parse(Buffer.from(sessionCookie, "base64").toString("utf-8"));
   } catch (e) {
     console.error("Middleware Session Parse Error:", e);
