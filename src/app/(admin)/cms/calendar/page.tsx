@@ -7,6 +7,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+export const dynamic = 'force-dynamic';
+
 interface MonthlyData {
   month: number;
   count: number;
