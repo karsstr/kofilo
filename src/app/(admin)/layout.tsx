@@ -5,9 +5,9 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { getSessionClient } from "@/lib/auth-client";
 import Sidebar from "@/components/admin/Sidebar";
 
 export default function AdminLayout({
@@ -16,14 +16,19 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    async function checkAuth() {
-      const session = await getSession();
+    function checkAuth() {
+      const s = getSessionClient();
 
       // 🔥 Izinkan SUPER_ADMIN dan MANAGER masuk 🔥
-      if (!session || (session.role !== "SUPER_ADMIN" && session.role !== "MANAGER")) {
+      const role = s?.role as string | undefined;
+      const allowedRoles: string[] = ["SUPER_ADMIN", "MANAGER"];
+      if (!role || !allowedRoles.includes(role)) {
         router.push("/login");
+      } else {
+        setSession(s);
       }
     }
     checkAuth();
@@ -32,7 +37,7 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar navigasi admin */}
-      <Sidebar />
+      <Sidebar user={session} />
 
       {/* Konten utama */}
       <main className="flex-1 p-6 overflow-auto">
