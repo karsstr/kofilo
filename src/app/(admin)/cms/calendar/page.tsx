@@ -1,13 +1,13 @@
-"use client";
+export const dynamic = 'force-dynamic';
 
 // =============================================================
 // Calendar & Monthly Report — /cms/calendar/page.tsx
 // Superadmin: Agregasi laporan per bulan + export PDF placeholder
 // =============================================================
 
-import { useState, useEffect, useCallback } from "react";
+"use client";
 
-export const dynamic = 'force-dynamic';
+import { useState, useEffect, useCallback } from "react";
 
 interface MonthlyData {
   month: number;
