@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+// 🔥 BARIS INI SANGAT WAJIB ADA AGAR HALAMAN TIDAK DI-CACHE OLEH NEXT.JS 🔥
+export const dynamic = 'force-dynamic';
+
 export default async function CustomerLandingPage({
   params,
 }: {
@@ -8,10 +11,18 @@ export default async function CustomerLandingPage({
 }) {
   const { tableId } = await params;
 
-  // 🔥 TAMBAHAN: Tarik data profil dari Database
+  // 🔥 Tarik data dari Database
   const store = await prisma.storeSetting.findFirst();
   const storeName = store?.storeName || "Kofilo";
   const storeLogo = store?.logo || null;
+  
+  // Cek apakah toko sedang buka atau tutup
+  const isStoreOpen = store?.isStoreOpen ?? true;
+
+  // Data Halaman Penyambut Dinamis
+  const bgImage = store?.pwaWelcomeBg || "https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=2000&auto=format&fit=crop";
+  const welcomeSubtitle = store?.pwaWelcomeSubtitle || "Table Dashboard";
+  const footerText = store?.pwaFooterText || "© 2026 KOFILO. PREMIUM EXPERIENCE.";
 
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center p-6 overflow-hidden bg-[#0f1222] selection:bg-[#6C4E31] selection:text-white font-sans">
@@ -19,7 +30,7 @@ export default async function CustomerLandingPage({
       {/* ── 1. BACKGROUND GAMBAR KAFE ── */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-105"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=2000&auto=format&fit=crop')" }}
+        style={{ backgroundImage: `url('${bgImage}')` }}
       />
       
       {/* ── 2. OVERLAY GELAP AGAR TEKS TERBACA ── */}
@@ -28,7 +39,7 @@ export default async function CustomerLandingPage({
       {/* ── 3. KONTEN UTAMA (TEPAT DI TENGAH) ── */}
       <div className="relative z-20 w-full max-w-md flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000 ease-out">
         
-        {/* 🔥 UBAHAN: Logo Icon Dinamis */}
+        {/* Logo Icon Dinamis */}
         {storeLogo ? (
           <img src={storeLogo} alt="Logo" className="w-24 h-24 rounded-full object-cover border border-white/20 mb-5 shadow-[0_0_40px_rgba(255,255,255,0.1)] bg-white" />
         ) : (
@@ -40,36 +51,49 @@ export default async function CustomerLandingPage({
           </div>
         )}
 
-        {/* 🔥 UBAHAN: Nama Brand Dinamis */}
+        {/* Nama Brand Dinamis */}
         <h1 className="text-[48px] leading-none font-black text-white tracking-tight mb-3 drop-shadow-lg">
           {storeName}
         </h1>
         
-        {/* Indikator Nomor Meja yang Estetik */}
+        {/* Indikator Nomor Meja / Teks Penyambut yang Estetik */}
         <div className="flex items-center gap-4 mb-10 w-full px-4">
           <span className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-[#6C4E31]/80"></span>
-          <p className="text-gray-200 text-[13px] font-bold uppercase tracking-[0.25em] drop-shadow-md whitespace-nowrap">
-            Table Dashboard
+          <p className="text-gray-200 text-[13px] font-bold uppercase tracking-[0.25em] drop-shadow-md text-center leading-relaxed max-w-[250px] sm:max-w-none">
+            {welcomeSubtitle}
           </p>
           <span className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-[#6C4E31]/80"></span>
         </div>
 
-        {/* Tombol CTA (Call to Action) */}
-        <Link 
-          href={`/${tableId}/menu`}
-          className="w-full bg-white text-[#0f1222] hover:bg-gray-100 py-4.5 rounded-[20px] font-extrabold text-[16px] transition-all duration-300 flex justify-center items-center gap-2 shadow-[0_10px_40px_rgba(0,0,0,0.4)] active:scale-[0.98] group"
-        >
-          View Menu & Order
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-          </svg>
-        </Link>
+        {/* 🔥 LOGIKA BUKA/TUTUP TOKO 🔥 */}
+        {isStoreOpen ? (
+          // Jika toko BUKA: Tampilkan Tombol Lanjut ke Menu
+          <Link 
+            href={`/${tableId}/menu`}
+            className="w-full bg-white text-[#0f1222] hover:bg-gray-100 py-4.5 rounded-[20px] font-extrabold text-[16px] transition-all duration-300 flex justify-center items-center gap-2 shadow-[0_10px_40px_rgba(0,0,0,0.4)] active:scale-[0.98] group"
+          >
+            View Menu & Order
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        ) : (
+          // Jika toko TUTUP: Tampilkan Notifikasi Elegan (Glassmorphism Merah)
+          <div className="w-full bg-red-500/10 backdrop-blur-md border border-red-500/30 text-white py-4 px-6 rounded-[20px] flex flex-col justify-center items-center gap-1.5 shadow-[0_10px_40px_rgba(239,68,68,0.2)]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 text-red-400 mb-1">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span className="font-extrabold text-[15px] tracking-wide">Mohon Maaf, Toko Sedang Tutup</span>
+            <span className="text-[12px] font-medium text-gray-300 text-center leading-snug">Pemesanan online sedang dinonaktifkan. Silakan hubungi kasir.</span>
+          </div>
+        )}
+
       </div>
 
       {/* ── 4. COPYRIGHT (DI BAWAH ABSOLUT) ── */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center z-20 animate-in fade-in duration-1000 delay-300">
         <p className="text-gray-400/60 text-[11px] font-semibold tracking-wide px-6 text-center uppercase">
-          © {new Date().getFullYear()} {storeName}. PREMIUM EXPERIENCE.
+          {footerText}
         </p>
       </div>
 

@@ -219,6 +219,9 @@ model StoreSetting {
   // ── PWA SETTINGS ──
   pwaBanners         Json?    @default("[]") // Menyimpan array banner promo
   pwaEnableTakeaway  Boolean  @default(true) // Toggle izin Takeaway
+  pwaWelcomeBg       String?  @db.Text
+  pwaWelcomeSubtitle String?  @default("TABLE DASHBOARD")
+  pwaFooterText      String?  @default("© 2026 KOFILO. PREMIUM EXPERIENCE.")
 
   updatedAt   DateTime @updatedAt
 }

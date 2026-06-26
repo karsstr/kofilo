@@ -10,7 +10,13 @@ export async function GET() {
 
   try {
     const settings = await prisma.storeSetting.findFirst({
-      select: { pwaBanners: true, pwaEnableTakeaway: true }
+      select: { 
+        isStoreOpen: true, 
+        pwaBanners: true, 
+        pwaWelcomeBg: true,
+        pwaWelcomeSubtitle: true,
+        pwaFooterText: true
+      }
     });
     return NextResponse.json({ settings });
   } catch (error) {
@@ -23,14 +29,20 @@ export async function PUT(req: NextRequest) {
   if (!session || session.role !== "SUPER_ADMIN") return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   try {
-    const { pwaBanners, pwaEnableTakeaway } = await req.json();
+    const body = await req.json();
     let settings = await prisma.storeSetting.findFirst();
     
     if (!settings) settings = await prisma.storeSetting.create({ data: { id: "kofilo-store-1" } });
 
     await prisma.storeSetting.update({
       where: { id: settings.id },
-      data: { pwaBanners: pwaBanners || [], pwaEnableTakeaway: Boolean(pwaEnableTakeaway) }
+      data: { 
+        isStoreOpen: Boolean(body.isStoreOpen),
+        pwaBanners: body.pwaBanners || [],
+        pwaWelcomeBg: body.pwaWelcomeBg || null,
+        pwaWelcomeSubtitle: body.pwaWelcomeSubtitle || "TABLE DASHBOARD",
+        pwaFooterText: body.pwaFooterText || "© 2026 KOFILO. PREMIUM EXPERIENCE."
+      }
     });
 
     return NextResponse.json({ message: "PWA Settings updated" });

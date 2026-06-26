@@ -127,24 +127,6 @@ export default function FinancialSettingsPage() {
           </div>
         </div>
 
-        {/* ── SECTION 2: ATURAN TRANSAKSI ── */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
-          <h2 className="text-[16px] font-black mb-6 flex items-center gap-2">
-            <span className="w-8 h-8 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center text-lg">🛒</span>
-            Aturan Checkout
-          </h2>
-
-          <div className="space-y-2 max-w-md">
-            <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest">Minimal Transaksi PWA</label>
-            <div className="relative">
-              <span className="absolute left-4 top-[14px] font-black text-gray-400">Rp</span>
-              <input type="number" value={formData.minOrderAmount} onChange={(e) => setFormData({ ...formData, minOrderAmount: e.target.value })}
-                className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl pl-12 pr-4 py-3.5 text-[14px] focus:outline-none focus:ring-4 focus:ring-[#6C4E31]/10 focus:border-[#6C4E31]/40 transition-all" min="0" />
-            </div>
-            <p className="text-[11px] text-gray-400 font-medium">Batas minimal nominal belanja (isi 0 jika tidak ada batas).</p>
-          </div>
-        </div>
-
         {/* ── SECTION 3: METODE PEMBAYARAN ── */}
         <div className="bg-white border border-gray-100 rounded-[24px] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
           <h2 className="text-[16px] font-black mb-6 flex items-center gap-2">
