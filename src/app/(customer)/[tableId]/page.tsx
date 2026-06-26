@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
 export default async function CustomerLandingPage({
   params,
@@ -6,6 +7,11 @@ export default async function CustomerLandingPage({
   params: Promise<{ tableId: string }>;
 }) {
   const { tableId } = await params;
+
+  // 🔥 TAMBAHAN: Tarik data profil dari Database
+  const store = await prisma.storeSetting.findFirst();
+  const storeName = store?.storeName || "Kofilo";
+  const storeLogo = store?.logo || null;
 
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center p-6 overflow-hidden bg-[#0f1222] selection:bg-[#6C4E31] selection:text-white font-sans">
@@ -17,23 +23,26 @@ export default async function CustomerLandingPage({
       />
       
       {/* ── 2. OVERLAY GELAP AGAR TEKS TERBACA ── */}
-      {/* Menggunakan overlay gelap merata agar elegan di tengah */}
       <div className="absolute inset-0 z-10 bg-black/60 backdrop-brightness-[0.8]" />
 
       {/* ── 3. KONTEN UTAMA (TEPAT DI TENGAH) ── */}
       <div className="relative z-20 w-full max-w-md flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000 ease-out">
         
-        {/* Logo Icon dengan efek Glassmorphism */}
-        <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full border border-white/20 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-11 h-11 text-white opacity-90">
-            <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 3a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3.75A.75.75 0 017.5 3zM16.5 3a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3.75a.75.75 0 01.75-.75z" />
-            <path fillRule="evenodd" d="M3 8.25A1.5 1.5 0 014.5 6.75h15a1.5 1.5 0 011.5 1.5v1.5a1.5 1.5 0 01-1.5 1.5h-1.5a.75.75 0 00-.75.75v.52a8.251 8.251 0 01-5.748 7.922 4.5 4.5 0 01-5.004 0A8.251 8.251 0 016.75 12.02v-.52a.75.75 0 00-.75-.75H4.5a1.5 1.5 0 01-1.5-1.5v-1.5zm6.75 2.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75v-1.5z" clipRule="evenodd" />
-          </svg>
-        </div>
+        {/* 🔥 UBAHAN: Logo Icon Dinamis */}
+        {storeLogo ? (
+          <img src={storeLogo} alt="Logo" className="w-24 h-24 rounded-full object-cover border border-white/20 mb-5 shadow-[0_0_40px_rgba(255,255,255,0.1)] bg-white" />
+        ) : (
+          <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full border border-white/20 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-11 h-11 text-white opacity-90">
+              <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 3a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3.75A.75.75 0 017.5 3zM16.5 3a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3.75a.75.75 0 01.75-.75z" />
+              <path fillRule="evenodd" d="M3 8.25A1.5 1.5 0 014.5 6.75h15a1.5 1.5 0 011.5 1.5v1.5a1.5 1.5 0 01-1.5 1.5h-1.5a.75.75 0 00-.75.75v.52a8.251 8.251 0 01-5.748 7.922 4.5 4.5 0 01-5.004 0A8.251 8.251 0 016.75 12.02v-.52a.75.75 0 00-.75-.75H4.5a1.5 1.5 0 01-1.5-1.5v-1.5zm6.75 2.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75v-1.5z" clipRule="evenodd" />
+            </svg>
+          </div>
+        )}
 
-        {/* Nama Brand */}
+        {/* 🔥 UBAHAN: Nama Brand Dinamis */}
         <h1 className="text-[48px] leading-none font-black text-white tracking-tight mb-3 drop-shadow-lg">
-          Kofilo
+          {storeName}
         </h1>
         
         {/* Indikator Nomor Meja yang Estetik */}
@@ -59,8 +68,8 @@ export default async function CustomerLandingPage({
 
       {/* ── 4. COPYRIGHT (DI BAWAH ABSOLUT) ── */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center z-20 animate-in fade-in duration-1000 delay-300">
-        <p className="text-gray-400/60 text-[11px] font-semibold tracking-wide px-6 text-center">
-          © {new Date().getFullYear()} KOFILO. PREMIUM COFFEE EXPERIENCE.
+        <p className="text-gray-400/60 text-[11px] font-semibold tracking-wide px-6 text-center uppercase">
+          © {new Date().getFullYear()} {storeName}. PREMIUM EXPERIENCE.
         </p>
       </div>
 

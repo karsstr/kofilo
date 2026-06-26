@@ -5,7 +5,7 @@
 // Diakses oleh semua role (SUPER_ADMIN & CASHIER)
 // =============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -13,6 +13,29 @@ export default function LoginPage() {
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 🔥 TAMBAHAN: State untuk menyimpan profil toko dinamis
+  const [storeInfo, setStoreInfo] = useState({
+    name: "Kofilo",
+    logo: "",
+    desc: "Manage your daily operations, track orders, and deliver the best coffee experience seamlessly."
+  });
+
+  // 🔥 TAMBAHAN: Fetch data toko saat halaman dibuka
+  useEffect(() => {
+    fetch("/api/public/store")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.settings) {
+          setStoreInfo({
+            name: data.settings.storeName || "Kofilo",
+            logo: data.settings.logo || "",
+            desc: data.settings.description || "Manage your daily operations, track orders, and deliver the best coffee experience seamlessly."
+          });
+        }
+      })
+      .catch((err) => console.error("Gagal load profil toko", err));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +71,9 @@ export default function LoginPage() {
     }
   };
 
+  // 🔥 TAMBAHAN: Helper untuk inisial nama toko (jika logo tidak ada)
+  const storeInitial = storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : "K";
+
   return (
     <main className="min-h-screen flex bg-[#FAFAFA] font-sans selection:bg-[#6C4E31] selection:text-white">
       
@@ -63,18 +89,26 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10 p-12 pt-16">
-          <div className="w-12 h-12 rounded-2xl bg-[#6C4E31] text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-[#6C4E31]/30">
-            K
-          </div>
+          {/* 🔥 UBAHAN: Menampilkan Logo Dinamis */}
+          {storeInfo.logo ? (
+            <img src={storeInfo.logo} alt="Logo" className="w-12 h-12 rounded-2xl object-cover bg-white shadow-lg shadow-[#1a1f36]/50" />
+          ) : (
+            <div className="w-12 h-12 rounded-2xl bg-[#6C4E31] text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-[#6C4E31]/30">
+              {storeInitial}
+            </div>
+          )}
         </div>
 
         <div className="relative z-10 p-12 pb-16">
+          {/* 🔥 UBAHAN: Menampilkan Nama dan Deskripsi Dinamis */}
           <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-4 tracking-tight">
-            Kofilo <br />
-            <span className="text-[#6C4E31]">Workspace.</span>
+            {storeInfo.name.split(' ')[0]} <br />
+            <span className="text-[#6C4E31]">
+              {storeInfo.name.split(' ').slice(1).join(' ') || "Workspace."}
+            </span>
           </h1>
           <p className="text-gray-400 text-lg max-w-md font-medium">
-            Manage your daily operations, track orders, and deliver the best coffee experience seamlessly.
+            {storeInfo.desc}
           </p>
         </div>
       </div>
@@ -88,10 +122,15 @@ export default function LoginPage() {
         <div className="w-full max-w-md relative z-10">
           
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-[#6C4E31] text-white flex items-center justify-center font-bold text-xl shadow-md">
-              K
-            </div>
-            <h1 className="text-xl font-black text-[#1a1f36]">Kofilo</h1>
+            {/* 🔥 UBAHAN: Logo Dinamis Mobile */}
+            {storeInfo.logo ? (
+              <img src={storeInfo.logo} alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white shadow-md border border-gray-100" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-[#6C4E31] text-white flex items-center justify-center font-bold text-xl shadow-md">
+                {storeInitial}
+              </div>
+            )}
+            <h1 className="text-xl font-black text-[#1a1f36]">{storeInfo.name}</h1>
           </div>
 
           <div className="mb-10">

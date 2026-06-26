@@ -114,11 +114,17 @@ export async function POST(req: NextRequest) {
           const storeSetting = await tx.storeSetting.findUnique({
             where: { id: "kofilo-store-1" },
           });
-          const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
+          
+          // 🔥 PERBAIKAN: Hitung Point DINAMIS dari database 🔥
+          const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
+          // Pastikan pembagi minimal 1 agar tidak error infinity/NaN
+          const rewardPerAmount = Math.max(storeSetting?.rewardPerAmount ?? 10000, 1);
           const pointsEarnedSetting = storeSetting?.pointsEarned ?? 1;
           
-          // 🔥 Point hanya dihitung dari calculatedTotal (yang mana barang reward nilainya sudah 0)
-          const earnedPoints = Math.floor(calculatedTotal / rewardPerAmount) * pointsEarnedSetting;
+          let earnedPoints = 0;
+          if (loyaltyEnabled) {
+             earnedPoints = Math.floor(calculatedTotal / rewardPerAmount) * pointsEarnedSetting;
+          }
 
           const existingCustomer = await tx.customer.findUnique({
             where: { phone: cleanPhone },
@@ -134,12 +140,13 @@ export async function POST(req: NextRequest) {
               },
             });
           } else {
-            // JIKA CUSTOMER BARU: Buat baru dengan nama "-"
+            // JIKA CUSTOMER BARU: Berikan bonus daftar (jika ada) + poin belanja
+            const registrationBonus = storeSetting?.registrationPoints ?? 0;
             await tx.customer.create({
               data: {
                 phone: cleanPhone,
                 name: "-", // NAMA DIBUAT KOSONG (Strip)
-                points: earnedPoints,
+                points: earnedPoints + registrationBonus,
                 createdAt: now,
                 updatedAt: now,
               },

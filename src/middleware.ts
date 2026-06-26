@@ -27,7 +27,8 @@ const PUBLIC_ROUTES = [
   "/api/v1/pwa/orders",
   // 🔥 PERBAIKAN: Buka akses API master data agar PWA Customer bisa mengambil menu
   "/api/products",
-  "/api/categories"
+  "/api/categories",
+  "/api/public"
 ];
 
 // --- Middleware Function ---

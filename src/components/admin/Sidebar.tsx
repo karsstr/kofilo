@@ -23,6 +23,23 @@ export default function Sidebar({ user }: Props) {
   const [loyaltyOpen, setLoyaltyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // State Profil Toko
+  const [storeInfo, setStoreInfo] = useState({ name: "Kofilo", logo: "" });
+
+  // Fetch Data Toko Dinamis
+  useEffect(() => {
+    fetch("/api/public/store")
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) {
+          setStoreInfo({
+            name: data.settings.storeName || "Kofilo",
+            logo: data.settings.logo || ""
+          });
+        }
+      }).catch(console.error);
+  }, []);
+
   // Auto-expand Dropdown jika sedang berada di dalam halamannya
   useEffect(() => {
     if (pathname.startsWith("/cms/loyalty")) setLoyaltyOpen(true);
@@ -33,7 +50,7 @@ export default function Sidebar({ user }: Props) {
   useEffect(() => {
     const justLoggedIn = sessionStorage.getItem("justLoggedIn");
     if (justLoggedIn === "true") {
-      setToast({ show: true, message: `Welcome back, Super Admin ${user.name.split(" ")[0]}!` });
+      setToast({ show: true, message: `Welcome back, ${user.name.split(" ")[0]}!` });
       sessionStorage.removeItem("justLoggedIn");
       setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
     }
@@ -53,25 +70,30 @@ export default function Sidebar({ user }: Props) {
     return `transition-colors duration-200 ${isActive ? "text-[#1a1f36]" : "text-gray-400 group-hover:text-[#1a1f36]"}`;
   };
 
+  const storeInitial = storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : "K";
+
   return (
     <>
       <aside className="w-[260px] bg-white border-r border-gray-100 flex flex-col h-screen text-[#1a1f36] sticky top-0 z-30 shadow-[4px_0_24px_rgba(0,0,0,0.01)]">
 
         {/* ── Brand Header ───────────────────────────────────── */}
         <div className="px-7 py-8 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6C4E31] to-[#583f27] flex items-center justify-center text-white text-xl shadow-[0_4px_12px_rgba(108,78,49,0.3)] relative">
-            <span className="font-black text-xl tracking-tighter">K</span>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 to-white/20 rounded-2xl"></div>
-          </div>
-          <div>
-            <h1 className="font-black text-[17px] leading-tight tracking-tight text-[#1a1f36]">Kofilo</h1>
-            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-0.5">Workspace</p>
+          {storeInfo.logo ? (
+            <img src={storeInfo.logo} alt="Logo" className="w-11 h-11 rounded-2xl object-cover bg-white shadow-[0_4px_12px_rgba(108,78,49,0.1)] border border-gray-100" />
+          ) : (
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6C4E31] to-[#583f27] flex items-center justify-center text-white text-xl shadow-[0_4px_12px_rgba(108,78,49,0.3)] relative">
+              <span className="font-black text-xl tracking-tighter">{storeInitial}</span>
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 to-white/20 rounded-2xl"></div>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h1 className="font-black text-[17px] leading-tight tracking-tight text-[#1a1f36] truncate">{storeInfo.name}</h1>
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-0.5 truncate">Workspace</p>
           </div>
         </div>
 
         {/* ── Navigation Menu ────────────────────────────────── */}
         <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto">
-
           {/* Dashboard */}
           <Link href="/cms/dashboard" className={navLinkClass("/cms/dashboard")}>
             <span className={iconClass("/cms/dashboard")}>
@@ -126,7 +148,6 @@ export default function Sidebar({ user }: Props) {
               </svg>
             </button>
 
-            {/* Sub-menu Loyalty */}
             {loyaltyOpen && (
               <div className="mt-1 ml-4 pl-3 border-l-2 border-gray-100 space-y-1">
                 <Link href="/cms/loyalty/members"
@@ -179,13 +200,12 @@ export default function Sidebar({ user }: Props) {
               </svg>
             </button>
 
-            {/* Sub-menu Store Settings */}
             {settingsOpen && (
               <div className="mt-1 ml-4 pl-3 border-l-2 border-gray-100 space-y-1">
                 {/* 1. Store Profile */}
                 <Link href="/cms/settings/profile"
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
-                    pathname === "/cms/settings/profile" || pathname === "/cms/settings"
+                    pathname === "/cms/settings/profile" || (pathname === "/cms/settings")
                       ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
                       : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
                   }`}>
@@ -194,8 +214,17 @@ export default function Sidebar({ user }: Props) {
                   </svg>
                   Store Profile
                 </Link>
-
-                {/* 2. Jam & Operasional */}
+                <Link href="/cms/settings/pwa"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
+                    pathname === "/cms/settings/pwa"
+                      ? "bg-[#6C4E31]/10 text-[#6C4E31] font-extrabold"
+                      : "text-gray-500 font-medium hover:text-[#1a1f36] hover:bg-gray-50"
+                  }`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                  </svg>
+                  PWA App Config
+                </Link>
                 <Link href="/cms/settings/operational"
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
                     pathname === "/cms/settings/operational"
@@ -207,8 +236,6 @@ export default function Sidebar({ user }: Props) {
                   </svg>
                   Location & Hours
                 </Link>
-
-                {/* 3. Keuangan & Pajak */}
                 <Link href="/cms/settings/financial"
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
                     pathname === "/cms/settings/financial"
@@ -220,8 +247,6 @@ export default function Sidebar({ user }: Props) {
                   </svg>
                   Finance & Taxes
                 </Link>
-
-                {/* 4. Aturan Poin */}
                 <Link href="/cms/settings/points"
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
                     pathname === "/cms/settings/points"
@@ -233,8 +258,6 @@ export default function Sidebar({ user }: Props) {
                   </svg>
                   Points Rule
                 </Link>
-
-                {/* 5. Struk Kasir */}
                 <Link href="/cms/settings/receipt"
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-200 ${
                     pathname === "/cms/settings/receipt"

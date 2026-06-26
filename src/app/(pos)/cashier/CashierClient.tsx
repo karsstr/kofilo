@@ -62,14 +62,16 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // 🔥 PERBAIKAN 1: Menambahkan properti "message" untuk notifikasi umum
+  // 🔥 TAMBAHAN: State Profil Toko
+  const [storeInfo, setStoreInfo] = useState({ name: "Kofilo", logo: "" });
+
   const [toast, setToast] = useState<{
     show: boolean;
     type: 'success' | 'error';
     title: string;
-    message?: string; // <--- Pesan teks biasa (seperti Berhasil Login)
-    txId?: string;    // <--- Khusus untuk struk payment
-    total?: number;   // <--- Khusus untuk struk payment
+    message?: string; 
+    txId?: string;    
+    total?: number;   
   }>({ show: false, type: 'success', title: '' });
 
   const [activeRightPanel, setActiveRightPanel] = useState<'order' | 'online'>('order');
@@ -86,6 +88,20 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
 
   const router = useRouter();
   const { cart, addToCart, updateQuantity, removeFromCart } = useCartStore();
+
+  // 🔥 TAMBAHAN: Fetch Data Profil Toko
+  useEffect(() => {
+    fetch("/api/public/store")
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) {
+          setStoreInfo({
+            name: data.settings.storeName || "Kofilo",
+            logo: data.settings.logo || ""
+          });
+        }
+      }).catch(console.error);
+  }, []);
 
   const fetchOnlineOrders = useCallback(async () => {
     try {
@@ -193,9 +209,7 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
     fetchProducts();
   }, []);
 
-  // 🔥 PERBAIKAN 2: Penanda Login Berhasil 🔥
   useEffect(() => {
-    // Mengecek apakah kasir baru saja sukses login
     const justLoggedIn = sessionStorage.getItem("justLoggedIn");
     if (justLoggedIn === "true") {
       setToast({
@@ -205,7 +219,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
         message: `Selamat bertugas, ${cashierName.split(' ')[0]}!`
       });
       
-      // Hapus memori agar tidak muncul lagi saat halaman di-refresh
       sessionStorage.removeItem("justLoggedIn"); 
       
       setTimeout(() => {
@@ -325,7 +338,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
 
     } catch (err: any) {
       console.error("[confirmPayment]", err);
-      // 🔥 PERBAIKAN 3: Memasukkan pesan error ke parameter `message`
       setToast({
         show: true,
         type: 'error',
@@ -347,6 +359,8 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
     return { baseName, variants };
   };
 
+  const storeInitial = storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : "K";
+
   return (
     <div className="flex h-screen w-full bg-[#f8f9fa] font-sans relative selection:bg-[#6C4E31] selection:text-white">
       
@@ -356,11 +370,17 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <header className="px-8 py-6 bg-white/80 backdrop-blur-md flex justify-between items-center shrink-0 border-b border-gray-100 z-10 sticky top-0">
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6C4E31] to-[#583f27] text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-[#6C4E31]/20">
-              {cashierName.charAt(0).toUpperCase()}
-            </div>
+            {/* 🔥 UBAHAN: Menampilkan Logo Dinamis di Kasir */}
+            {storeInfo.logo ? (
+              <img src={storeInfo.logo} alt="Logo" className="w-11 h-11 rounded-2xl object-cover bg-white shadow-lg border border-gray-100" />
+            ) : (
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6C4E31] to-[#583f27] text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-[#6C4E31]/20">
+                {storeInitial}
+              </div>
+            )}
             <div>
-              <h1 className="font-extrabold text-xl leading-none text-[#1a1f36] tracking-tight">Kofilo</h1>
+              {/* 🔥 UBAHAN: Menampilkan Nama Dinamis di Kasir */}
+              <h1 className="font-extrabold text-xl leading-none text-[#1a1f36] tracking-tight">{storeInfo.name}</h1>
               <p className="text-[13px] text-gray-500 mt-1 font-medium flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Cashier: {cashierName}
@@ -932,7 +952,8 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                 
                 <div className="p-7 pt-10 pb-10 font-mono text-[12px] text-gray-800">
                   <div className="text-center mb-8">
-                    <h3 className="font-black text-xl mb-1.5 font-sans tracking-tight text-[#1a1f36]">CRAFT COFFEE</h3>
+                    {/* 🔥 UBAHAN: Nama Toko di Struk Preview Kasir */}
+                    <h3 className="font-black text-xl mb-1.5 font-sans tracking-tight text-[#1a1f36] uppercase">{storeInfo.name}</h3>
                     <p className="text-gray-500 text-[10px] uppercase tracking-wider">Jl. Senopati No. 42, Jakarta</p>
                     <p className="text-gray-500 text-[10px] uppercase tracking-wider">Tel: (021) 555-0123</p>
                   </div>
@@ -1024,7 +1045,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                 {toast.title}
               </h4>
               
-              {/* 🔥 PERBAIKAN 4: Render kondisional untuk teks Toast */}
               {toast.type === 'success' && toast.txId ? (
                 <div className="text-[13px] text-gray-500 font-medium">
                   <p>Tx ID: <span className="text-[#1a1f36] font-bold">{toast.txId}</span></p>
@@ -1169,7 +1189,8 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                     
                     <div className="p-6 pt-9 pb-9 font-mono text-[11.5px] text-gray-800">
                       <div className="text-center mb-6">
-                        <h3 className="font-black text-lg mb-1 font-sans tracking-tight text-[#1a1f36]">CRAFT COFFEE</h3>
+                        {/* 🔥 UBAHAN: Nama Toko di Struk Detail History */}
+                        <h3 className="font-black text-lg mb-1 font-sans tracking-tight text-[#1a1f36] uppercase">{storeInfo.name}</h3>
                         <p className="text-gray-400 text-[9px] uppercase tracking-wider">Jl. Senopati No. 42, Jakarta</p>
                       </div>
 

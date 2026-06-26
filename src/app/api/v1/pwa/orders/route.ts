@@ -127,32 +127,34 @@ export async function POST(req: NextRequest) {
     // --- Loyalty: Hitung & tambah poin ---
     try {
       const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
-      const rewardPerAmount = storeSetting?.rewardPerAmount ?? 10000;
-      const pointsEarned = storeSetting?.pointsEarned ?? 1;
+      // 🔥 PERBAIKAN: Mengambil data dinamis dan proteksi devide-by-zero
+      const rewardPerAmount = Math.max(storeSetting?.rewardPerAmount ?? 10000, 1);
+      const pointsEarnedSetting = storeSetting?.pointsEarned ?? 1;
 
       if (loyaltyEnabled && customerPayload.phone) {
         // Hitung poin dari total belanja akhir
-        const earnedPoints = Math.floor(finalTotalAmount / rewardPerAmount) * pointsEarned;
+        const earnedPoints = Math.floor(finalTotalAmount / rewardPerAmount) * pointsEarnedSetting;
         
-        if (earnedPoints > 0) {
-          let cleanPhone = customerPayload.phone.replace(/\D/g, "");
-          if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
-          else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
+        // Tetap jalankan update meskipun poin 0 (misalnya hanya pakai poin untuk redeem, tujuannya untuk update Last Transaction)
+        let cleanPhone = customerPayload.phone.replace(/\D/g, "");
+        if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
+        else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
 
-          if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
-            const now = new Date();
-            await prisma.customer.upsert({
-              where: { phone: cleanPhone },
-              update: { points: { increment: earnedPoints }, updatedAt: now },
-              create: {
-                phone: cleanPhone,
-                name: customerPayload.name || "-",
-                points: earnedPoints,
-                createdAt: now,
-                updatedAt: now,
-              }
-            });
-          }
+        if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
+          const now = new Date();
+          const registrationBonus = storeSetting?.registrationPoints ?? 0;
+          
+          await prisma.customer.upsert({
+            where: { phone: cleanPhone },
+            update: { points: { increment: earnedPoints }, updatedAt: now },
+            create: {
+              phone: cleanPhone,
+              name: customerPayload.name || "-",
+              points: earnedPoints + registrationBonus, // Menambahkan bonus daftar
+              createdAt: now,
+              updatedAt: now,
+            }
+          });
         }
       }
     } catch (loyaltyErr) {

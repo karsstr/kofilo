@@ -152,6 +152,7 @@ model PwaOrder {
   tableId     String
   customerId  String?
   totalAmount Int
+  orderType   String         @default("DINE_IN")
   status      PwaOrderStatus @default(PENDING_CONFIRMATION)
   paymentMethod PaymentMethod?
   items       Json
@@ -214,6 +215,10 @@ model StoreSetting {
   // ── TAMBAHAN UNTUK STRUK KASIR ──
   receiptFooter      String?  @db.Text        // Pesan di bawah struk
   wifiPassword       String?                  // Info WiFi untuk pelanggan
+
+  // ── PWA SETTINGS ──
+  pwaBanners         Json?    @default("[]") // Menyimpan array banner promo
+  pwaEnableTakeaway  Boolean  @default(true) // Toggle izin Takeaway
 
   updatedAt   DateTime @updatedAt
 }

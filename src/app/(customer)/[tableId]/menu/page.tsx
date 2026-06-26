@@ -41,22 +41,51 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
   const [iceLevel, setIceLevel] = useState('Normal Ice');
   const [itemNote, setItemNote] = useState('');
 
-  // State untuk menangkap notifikasi login berhasil
   const [toast, setToast] = useState<{ show: boolean; title: string; message: string }>({ 
     show: false, title: '', message: '' 
   });
 
   const { cart, addToCart } = useCartStore();
-  
-  // Panggil setCustomer dari store untuk update poin
   const { customer, isLoggedIn, setCustomer } = usePwaAuthStore();
 
   const [isMounted, setIsMounted] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // 🔥 STATE PWA DARI DATABASE
+  const [storeInfo, setStoreInfo] = useState({ 
+    name: "Kofilo", logo: "", 
+    pwaBanners: [] as any[]
+  });
+  
+  // 🔥 STATE CAROUSEL PROMO
+  const [currentSlide, setCurrentSlide] = useState(0);
+
   useEffect(() => {
     setIsMounted(true);
+    fetch("/api/public/store")
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) {
+          setStoreInfo({
+            name: data.settings.storeName || "Kofilo",
+            logo: data.settings.logo || "",
+            pwaBanners: data.settings.pwaBanners || []
+          });
+        }
+      }).catch(console.error);
   }, []);
 
-  const navRef = useRef<HTMLDivElement>(null);
+  // Filter banner yang status isActive-nya true saja
+  const activeBanners = storeInfo.pwaBanners.filter((b: any) => b.isActive);
+
+  // 🔥 EFEK AUTO-SCROLL CAROUSEL (Setiap 4 Detik)
+  useEffect(() => {
+    if (activeBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % activeBanners.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [activeBanners.length]);
 
   // ── FETCH MENU ──
   useEffect(() => {
@@ -110,13 +139,12 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
     return () => { isMounted = false; };
   }, []);
 
-  // 🔥 FIX MASALAH 1: AUTO-UPDATE POIN & NAMA SECARA BERKALA 🔥
+  // ── AUTO-UPDATE POIN ──
   useEffect(() => {
     let isMounted = true;
     let intervalId: NodeJS.Timeout;
 
     const fetchFreshPoints = async () => {
-      // Ambil data token terbaru langsung dari memory Zustand (menghindari cache/stale data)
       const currentCustomer = usePwaAuthStore.getState().customer;
       if (!currentCustomer?.token) return;
 
@@ -129,11 +157,10 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
         if (res.ok && isMounted) {
           const data = await res.json();
           if (data.customer) {
-            // Hanya merubah state (setCustomer) jika poin atau namanya benar-benar berubah dari database
             if (data.customer.points !== currentCustomer.points || data.customer.name !== currentCustomer.name) {
               usePwaAuthStore.getState().setCustomer({
                 ...data.customer,
-                token: currentCustomer.token // Pastikan Token Tidak Hilang!
+                token: currentCustomer.token
               });
             }
           }
@@ -144,8 +171,8 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
     };
 
     if (isLoggedIn()) {
-      fetchFreshPoints(); // Tarik data sekali saat pertama kali masuk ke menu
-      intervalId = setInterval(fetchFreshPoints, 10000); // Polling (cek terus) setiap 10 detik
+      fetchFreshPoints(); 
+      intervalId = setInterval(fetchFreshPoints, 10000); 
     }
 
     return () => {
@@ -154,14 +181,13 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
     };
   }, [isLoggedIn]);
 
-  // Menangkap sinyal "justLoggedIn" dari SessionStorage
   useEffect(() => {
     const justLoggedIn = sessionStorage.getItem("justLoggedIn");
     if (justLoggedIn === "true") {
       setToast({ 
         show: true, 
         title: 'Selamat Datang!', 
-        message: 'Anda berhasil masuk ke Kofilo Loyalty.' 
+        message: `Anda berhasil masuk ke ${storeInfo.name} Loyalty.` 
       });
       sessionStorage.removeItem("justLoggedIn");
       
@@ -169,7 +195,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
         setToast(prev => ({ ...prev, show: false }));
       }, 4000);
     }
-  }, []);
+  }, [storeInfo.name]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -244,9 +270,10 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-[#1C1917] pb-32 selection:bg-[#A67B5B] selection:text-white">
       <header className="px-5 pt-6 pb-4 flex justify-between items-center">
-        <div>
+        <div className="flex items-center gap-2">
+          {storeInfo.logo && <img src={storeInfo.logo} alt="Logo" className="w-8 h-8 rounded-full object-cover shadow-sm bg-white" />}
           <h1 className="font-black text-[28px] tracking-tight text-[#1C1917] leading-none flex items-baseline gap-1">
-            Kofilo<span className="w-2 h-2 rounded-full bg-[#A67B5B] inline-block mb-1"></span>
+            {storeInfo.name}<span className="w-2 h-2 rounded-full bg-[#A67B5B] inline-block mb-1"></span>
           </h1>
         </div>
         <div className="bg-white border border-gray-200 px-4 py-2.5 rounded-full shadow-sm">
@@ -255,15 +282,36 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
       </header>
 
       <div className="px-5 pb-6 flex flex-col gap-5">
-        <div className="w-full h-[280px] rounded-[24px] overflow-hidden relative shadow-[0_12px_30px_-10px_rgba(0,0,0,0.15)] group">
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-105"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=800&auto=format&fit=crop')" }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-6">
-            <span className="w-fit bg-[#A67B5B] text-white px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest mb-3 shadow-md">Special Offer</span>
-            <h2 className="text-white font-black text-[32px] leading-tight drop-shadow-lg mb-1">Morning Brew</h2>
-            <p className="text-[#E3C39D] font-serif italic text-[20px] drop-shadow-md">Buy 1 Get 1 Free</p>
+        
+        {/* 🔥 BANNER PROMO CAROUSEL DINAMIS 🔥 */}
+        {activeBanners.length > 0 && (
+          <div className="relative w-full h-[280px] rounded-[24px] overflow-hidden shadow-[0_12px_30px_-10px_rgba(0,0,0,0.15)] group">
+            {activeBanners.map((banner: any, idx: number) => (
+              <div key={banner.id} className={`absolute inset-0 transition-opacity duration-1000 ${currentSlide === idx ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
+                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[4000ms] ease-out group-hover:scale-105"
+                  style={{ backgroundImage: `url('${banner.image}')` }} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-6">
+                  {banner.badge && <span className="w-fit bg-[#A67B5B] text-white px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest mb-3 shadow-md">{banner.badge}</span>}
+                  <h2 className="text-white font-black text-[32px] leading-tight drop-shadow-lg mb-1">{banner.title}</h2>
+                  {banner.subtitle && <p className="text-[#E3C39D] font-serif italic text-[20px] drop-shadow-md">{banner.subtitle}</p>}
+                </div>
+              </div>
+            ))}
+            
+            {/* Pagination Dots (Muncul hanya jika banner > 1) */}
+            {activeBanners.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-20">
+                {activeBanners.map((_: any, idx: number) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setCurrentSlide(idx)} 
+                    className={`h-2 rounded-full transition-all duration-300 ${currentSlide === idx ? 'bg-white w-6 shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-white/40 w-2 hover:bg-white/70'}`} 
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* ── BANNER LOYALTY ── */}
         <button 
@@ -289,7 +337,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             </div>
             <div>
               <h3 className="text-[14.5px] font-black text-white tracking-wide leading-tight">
-                {isMounted && isLoggedIn() ? `Member ${customer?.name?.split(" ")[0] || 'Kofilo'}` : "Kofilo Loyalty"}
+                {isMounted && isLoggedIn() ? `Member ${customer?.name?.split(" ")[0] || storeInfo.name}` : `${storeInfo.name} Loyalty`}
               </h3>
               {isLoggedIn() && (
                 <div className="flex items-center gap-1.5 mt-1">
@@ -470,7 +518,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
 
       <AuthDrawer isOpen={showAuthDrawer} onClose={() => setShowAuthDrawer(false)} context="loyalty" />
 
-      {/* ── TOAST NOTIFICATION PWA ── */}
+      {/* TOAST PWA */}
       {toast.show && (
         <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-top-5 fade-in duration-300">
           <div className="bg-white rounded-[20px] p-4 pr-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-emerald-100 flex items-center gap-4 min-w-[300px]">
@@ -487,6 +535,7 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
         </div>
       )}
 
+      {/* 🔥 BUTTON BOTTOM CART (Hanya Tombol Checkout) 🔥 */}
       {cart.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-5 z-40 animate-in slide-in-from-bottom-full duration-500">
           <div className="max-w-lg mx-auto bg-[#1C1917]/95 backdrop-blur-xl rounded-[24px] shadow-[0_20px_40px_rgba(0,0,0,0.4)] p-4 px-6 flex justify-between items-center border border-white/10">

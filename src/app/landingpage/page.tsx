@@ -61,6 +61,23 @@ const Reveal = ({
 export default function KofiloLandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  
+  // 🔥 TAMBAHAN: State Profil Toko
+  const [storeInfo, setStoreInfo] = useState({ name: "Kofilo", logo: "" });
+
+  // 🔥 TAMBAHAN: Fetch data nama dan logo
+  useEffect(() => {
+    fetch("/api/public/store")
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) {
+          setStoreInfo({
+            name: data.settings.storeName || "Kofilo",
+            logo: data.settings.logo || ""
+          });
+        }
+      }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -88,6 +105,9 @@ export default function KofiloLandingPage() {
     { q: "Bisakah Kofilo memantau banyak cabang sekaligus?", a: "Bisa. Dengan Kofilo Pro, Anda mendapatkan akses Super Admin untuk memantau laporan penjualan, stok, dan kasir dari berbagai cabang dalam satu layar secara real-time." },
     { q: "Bagaimana jika internet di kafe sedang mati?", a: "Kofilo dirancang dengan sistem PWA yang memiliki cache lokal sementara. Anda tetap bisa melihat menu, meski sinkronisasi transaksi harus menunggu koneksi kembali." }
   ];
+
+  // Inisial Toko Dinamis
+  const storeInitial = storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : "K";
 
   return (
     <div className="min-h-screen bg-[#Fdfbf9] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white overflow-hidden relative">
@@ -119,10 +139,15 @@ export default function KofiloLandingPage() {
       <div className="fixed top-0 w-full z-50 p-4 transition-all duration-500 pointer-events-none">
         <nav className={`max-w-6xl mx-auto pointer-events-auto transition-all duration-500 rounded-full px-6 py-3 flex items-center justify-between ${scrolled ? "bg-white/80 backdrop-blur-2xl border border-white/50 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)]" : "bg-transparent py-4"}`}>
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
-            <div className="w-10 h-10 rounded-full bg-[#1a1f36] flex items-center justify-center text-white text-lg shadow-lg group-hover:scale-105 group-hover:bg-[#6C4E31] transition-all duration-300">
-              <span className="font-black tracking-tighter">K</span>
-            </div>
-            <span className="font-black text-[22px] tracking-tight">Kofilo.</span>
+            {/* 🔥 UBAHAN: Nav Logo Dinamis */}
+            {storeInfo.logo ? (
+              <img src={storeInfo.logo} alt="Logo" className="w-10 h-10 rounded-full object-cover shadow-lg group-hover:scale-105 transition-all duration-300 bg-white" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-[#1a1f36] flex items-center justify-center text-white text-lg shadow-lg group-hover:scale-105 group-hover:bg-[#6C4E31] transition-all duration-300">
+                <span className="font-black tracking-tighter">{storeInitial}</span>
+              </div>
+            )}
+            <span className="font-black text-[22px] tracking-tight">{storeInfo.name}.</span>
           </div>
           
           <div className="hidden md:flex items-center gap-2">
@@ -323,7 +348,7 @@ export default function KofiloLandingPage() {
         </div>
       </section>
 
-      {/* ── BENTO GRID MEGA FEATURES (Penyempurnaan Efek Hover Melayang) ── */}
+      {/* ── BENTO GRID MEGA FEATURES ── */}
       <section id="fitur" className="py-32 max-w-7xl mx-auto px-6 lg:px-8 scroll-mt-20">
         <Reveal>
           <div className="text-center mb-20 max-w-3xl mx-auto">
@@ -454,7 +479,7 @@ export default function KofiloLandingPage() {
         </Reveal>
       </section>
 
-      {/* ── PRICING SECTION (Dengan Efek Hover Mengambang) ── */}
+      {/* ── PRICING SECTION ── */}
       <section id="harga" className="py-40 max-w-7xl mx-auto px-6 lg:px-8 scroll-mt-20 relative">
         <Reveal>
           <div className="text-center mb-24 max-w-3xl mx-auto">
@@ -487,7 +512,7 @@ export default function KofiloLandingPage() {
             </div>
           </Reveal>
 
-          {/* Pro Plan (Animated Border & Glow) */}
+          {/* Pro Plan */}
           <Reveal delay={300} direction="left" className="h-full w-full">
             <div className="relative h-full w-full rounded-[48px] p-[2px] bg-gradient-to-b from-[#6C4E31] via-[#d4a373] to-[#1a1f36] shadow-[0_30px_60px_rgba(108,78,49,0.3)] md:-mt-8 md:mb-8 group cursor-pointer hover:-translate-y-6 hover:shadow-[0_50px_100px_rgba(108,78,49,0.5)] transition-all duration-500 z-20 md:scale-105">
               <div className="absolute top-8 right-8 bg-gradient-to-r from-[#d4a373] to-[#6C4E31] text-white text-[13px] font-black uppercase tracking-[0.1em] px-5 py-2 rounded-full shadow-lg z-30">Paling Laris</div>
@@ -515,7 +540,7 @@ export default function KofiloLandingPage() {
         </div>
       </section>
 
-      {/* ── FAQ SECTION (Interactive) ── */}
+      {/* ── FAQ SECTION ── */}
       <section id="faq" className="py-32 bg-white border-t border-gray-200 scroll-mt-10 relative">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <Reveal>
@@ -562,13 +587,18 @@ export default function KofiloLandingPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-12 grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
           <div className="md:col-span-2">
             <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-[#6C4E31] to-[#583f27] flex items-center justify-center text-white text-2xl font-black shadow-[0_10px_20px_rgba(108,78,49,0.5)]">K</div>
-              <span className="font-black text-[32px] tracking-tight">Kofilo.</span>
+              {/* 🔥 UBAHAN: Footer Logo Dinamis */}
+              {storeInfo.logo ? (
+                <img src={storeInfo.logo} alt="Logo" className="w-12 h-12 rounded-[16px] object-cover bg-white shadow-[0_10px_20px_rgba(108,78,49,0.5)]" />
+              ) : (
+                <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-[#6C4E31] to-[#583f27] flex items-center justify-center text-white text-2xl font-black shadow-[0_10px_20px_rgba(108,78,49,0.5)]">{storeInitial}</div>
+              )}
+              <span className="font-black text-[32px] tracking-tight">{storeInfo.name}.</span>
             </div>
             <p className="text-gray-400 text-[16px] max-w-sm leading-relaxed">Sistem POS & Loyalty Hub modern yang didesain khusus untuk melipatgandakan retensi pelanggan dan omset bisnis F&B Anda secara otomatis.</p>
           </div>
           <div>
-            <h4 className="font-black text-[18px] mb-8 text-white">Produk Kofilo</h4>
+            <h4 className="font-black text-[18px] mb-8 text-white">Produk {storeInfo.name}</h4>
             <ul className="space-y-5 text-gray-400 text-[15px] font-medium">
               <li><a href="#fitur" className="hover:text-white hover:translate-x-1 inline-block transition-all">PWA Ordering App</a></li>
               <li><a href="#fitur" className="hover:text-white hover:translate-x-1 inline-block transition-all">Loyalty Reward System</a></li>
@@ -587,7 +617,7 @@ export default function KofiloLandingPage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 lg:px-12 border-t border-white/10 pt-10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-[14px] text-gray-500 font-medium">© 2026 Kofilo Software F&B. Seluruh Hak Cipta Dilindungi.</p>
+          <p className="text-[14px] text-gray-500 font-medium">© {new Date().getFullYear()} {storeInfo.name} Software F&B. Seluruh Hak Cipta Dilindungi.</p>
           <div className="flex gap-4">
             <a href="#" className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#6C4E31] hover:border-transparent hover:-translate-y-1 transition-all shadow-sm">IG</a>
             <a href="#" className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#6C4E31] hover:border-transparent hover:-translate-y-1 transition-all shadow-sm">X</a>
