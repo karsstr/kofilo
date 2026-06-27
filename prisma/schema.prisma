@@ -67,6 +67,8 @@ model Category {
   name    String  @unique
   isDrink Boolean @default(false)
 
+  sortOrder Int       @default(0)
+
   products Product[]
 
   @@map("categories")
@@ -85,7 +87,7 @@ model Product {
   isAvailable Boolean @default(true)
   categoryId  String
 
-  category   Category    @relation(fields: [categoryId], references: [id])
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
 
   @@map("products")
@@ -116,12 +118,12 @@ model Order {
 model OrderItem {
   id        String @id @default(cuid())
   orderId   String
-  productId String
+  productId String?
   quantity  Int
   subTotal  Int
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@map("order_items")
 }

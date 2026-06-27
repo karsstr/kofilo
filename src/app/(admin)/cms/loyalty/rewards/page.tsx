@@ -30,6 +30,10 @@ export default function LoyaltyRewardsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // 🔥 STATE UNTUK MODAL HAPUS KUSTOM 🔥
+  const [rewardToDelete, setRewardToDelete] = useState<RewardProduct | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Toast
   const [toast, setToast] = useState({ show: false, type: "success" as "success" | "error", message: "" });
 
@@ -95,13 +99,26 @@ export default function LoyaltyRewardsPage() {
     finally { setSubmitting(false); }
   };
 
-  const handleDelete = async (r: RewardProduct) => {
-    if (!confirm(`Hapus reward "${r.name}"?`)) return;
+  // 🔥 FUNGSI EKSEKUSI HAPUS DARI MODAL 🔥
+  const executeDelete = async () => {
+    if (!rewardToDelete) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/loyalty/rewards?id=${r.id}`, { method: "DELETE" });
-      if (res.ok) { showToast("success", "Reward berhasil dihapus."); fetchRewards(); }
-      else { const d = await res.json(); showToast("error", d.message || "Gagal menghapus"); }
-    } catch { showToast("error", "Terjadi kesalahan jaringan"); }
+      const res = await fetch(`/api/loyalty/rewards?id=${rewardToDelete.id}`, { method: "DELETE" });
+      if (res.ok) { 
+        showToast("success", "Reward berhasil dihapus."); 
+        fetchRewards(); 
+      }
+      else { 
+        const d = await res.json(); 
+        showToast("error", d.message || "Gagal menghapus"); 
+      }
+    } catch { 
+      showToast("error", "Terjadi kesalahan jaringan"); 
+    } finally {
+      setIsDeleting(false);
+      setRewardToDelete(null);
+    }
   };
 
   return (
@@ -177,7 +194,8 @@ export default function LoyaltyRewardsPage() {
                         <button onClick={() => openEditModal(r)} className="p-2.5 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all duration-200" title="Edit">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
                         </button>
-                        <button onClick={() => handleDelete(r)} className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200" title="Hapus">
+                        {/* 🔥 UBAHAN: Tombol Hapus memanggil state Pop-up, bukan confirm() bawaan 🔥 */}
+                        <button onClick={() => setRewardToDelete(r)} className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200" title="Hapus">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                         </button>
                       </div>
@@ -236,6 +254,36 @@ export default function LoyaltyRewardsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 MODAL KONFIRMASI HAPUS KHUSUS REWARD 🔥 */}
+      {rewardToDelete && (
+        <div className="fixed inset-0 z-[120] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-gray-100 text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h3 className="text-xl font-black text-[#1a1f36] mb-2">Hapus Reward?</h3>
+            <p className="text-gray-500 text-[13px] font-medium mb-6">
+              Yakin hapus <strong className="text-gray-800">{rewardToDelete.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setRewardToDelete(null)}
+                className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={executeDelete}
+                disabled={isDeleting}
+                className="flex-1 py-3 text-white font-bold bg-red-600 hover:bg-red-700 rounded-xl active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
           </div>
         </div>
       )}

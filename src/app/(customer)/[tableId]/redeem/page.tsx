@@ -11,7 +11,6 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
   const { customer, setCustomer, isLoggedIn } = usePwaAuthStore();
   const { cart, redeemedRewards, addRedeemedReward, removeRedeemedReward, addToCart } = useCartStore();
 
-  // Menyimpan daftar reward asli dari Superadmin
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -23,11 +22,9 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
 
     const fetchRewards = async () => {
       try {
-        // 🔥 UPDATE 1: API ini sekarang menembak ke tabel khusus Reward (RewardProduct)
         const res = await fetch('/api/v1/pwa/rewards/list');
         if (res.ok) {
           const data = await res.json();
-          // Data disalurkan utuh tanpa kalkulasi Math.floor
           setProducts(data.rewards || []);
         }
       } catch (error) { 
@@ -45,7 +42,6 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
   };
 
   const handleTukarkan = async (product: any) => {
-    // Mengecek 'pointCost' yang ada di tabel RewardProduct
     if ((customer?.points || 0) < product.pointCost) return;
     setLoadingId(product.id);
 
@@ -58,7 +54,7 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
         },
         body: JSON.stringify({ 
           productId: product.id, 
-          pointsCost: product.pointCost // Sinkronisasi properti ke backend
+          pointsCost: product.pointCost 
         })
       });
       
@@ -66,10 +62,16 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
 
       if (res.ok) {
         setCustomer({ ...customer!, points: data.customer.points });
+        
+        // 🔥 UPDATE LOKAL: Kurangi stok 1 di layar agar tombol langsung berubah jika sisa 0
+        setProducts(prev => prev.map(p => 
+          p.id === product.id ? { ...p, qtyExchange: p.qtyExchange - 1 } : p
+        ));
+
         addRedeemedReward({
           id: product.id, 
           name: product.name, 
-          originalPrice: 0, // Barang reward dari superadmin diasumsikan modal Rp0
+          originalPrice: 0, 
           pointsCost: product.pointCost, 
           image: null
         });
@@ -122,10 +124,11 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
         ) : (
           products.map((product) => {
             const isRedeemed = redeemedRewards.find(r => r.id === product.id);
-            // 🔥 UPDATE 2: Membaca 'pointCost' asli milik database Superadmin
             const canAfford = (customer?.points || 0) >= product.pointCost;
-            
             const isInCart = cart.find((c: any) => c.id === product.id + '-reward');
+            
+            // 🔥 LOGIKA BARU: Cek apakah stok habis
+            const isOutOfStock = product.qtyExchange <= 0;
 
             return (
               <div key={product.id} className="bg-white rounded-[24px] p-4 flex gap-4 shadow-sm border border-gray-100">
@@ -143,6 +146,10 @@ export default function RedeemPage({ params }: { params: Promise<{ tableId: stri
                   ) : isRedeemed ? (
                     <button onClick={() => handleGunakan(isRedeemed)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full shadow-[0_4px_15px_-3px_rgba(16,185,129,0.5)] transition-all">
                       Gunakan
+                    </button>
+                  ) : isOutOfStock ? ( // 🔥 RENDER TOMBOL KUOTA HABIS JIKA STOK 0
+                    <button disabled className="bg-gray-200 text-gray-400 text-[12px] font-black py-2.5 rounded-xl uppercase tracking-wider w-full cursor-not-allowed border border-gray-300">
+                      Kuota Habis
                     </button>
                   ) : (
                     <button 

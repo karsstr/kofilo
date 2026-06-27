@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'; // Hindari cache ganas Next.js
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
-      orderBy: { name: "asc" },
+      orderBy: { sortOrder: "asc" }, // 🔥 UBAHAN: Sekarang diurutkan berdasarkan drag-and-drop
     });
     return NextResponse.json({ categories });
   } catch (error) {
@@ -37,10 +37,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Nama kategori wajib diisi" }, { status: 400 });
     }
 
+    // 🔥 UBAHAN: Cari urutan terakhir, lalu tambahkan di posisi paling bawah
+    const lastCategory = await prisma.category.findFirst({
+      orderBy: { sortOrder: 'desc' },
+    });
+    const nextOrder = lastCategory ? lastCategory.sortOrder + 1 : 0;
+
     const category = await prisma.category.create({
       data: { 
         name, 
-        isDrink: isDrink ?? false 
+        isDrink: isDrink ?? false,
+        sortOrder: nextOrder // 🔥 UBAHAN: Simpan urutannya
       },
     });
 
@@ -59,11 +66,24 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
+    const body = await req.json();
+
+    // 🔥 UBAHAN: Tangkap sinyal Reorder massal dari Drag-and-Drop
+    if (body.reorder && Array.isArray(body.categories)) {
+      const transactions = body.categories.map((cat: any) => 
+        prisma.category.update({
+          where: { id: cat.id },
+          data: { sortOrder: cat.sortOrder }
+        })
+      );
+      await prisma.$transaction(transactions);
+      return NextResponse.json({ message: "Urutan berhasil diperbarui" });
+    }
+    
+    // Edit Normal (Nama/Tipe)
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ message: "ID wajib diisi" }, { status: 400 });
-
-    const body = await req.json();
     
     const category = await prisma.category.update({
       where: { id },
@@ -92,29 +112,13 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ message: "ID wajib diisi" }, { status: 400 });
 
-    // Validasi awal: cek apakah masih ada produk dalam kategori ini
-    const categoryWithCount = await prisma.category.findUnique({
-      where: { id },
-      include: { _count: { select: { products: true } } },
-    });
-
-    if (!categoryWithCount) {
-      return NextResponse.json({ message: "Kategori tidak ditemukan" }, { status: 404 });
-    }
-
-    if (categoryWithCount._count.products > 0) {
-      return NextResponse.json({
-        message: `Gagal menghapus: Kategori ini masih memiliki ${categoryWithCount._count.products} produk. Pindahkan atau hapus produknya terlebih dahulu.`,
-      }, { status: 400 });
-    }
+    // 🔥 UBAHAN: Hapus blokade/validasi error manual di sini.
+    // Biarkan Prisma yang bekerja merobohkan "rak" dan "buku"-nya via Cascade.
 
     await prisma.category.delete({ where: { id } });
     return NextResponse.json({ message: "Kategori berhasil dihapus" });
   } catch (error: any) {
     console.error("[DELETE /api/categories]", error);
-    if (error.code === 'P2003') {
-      return NextResponse.json({ message: "Gagal: Masih ada produk di dalam kategori ini. Pindahkan/hapus produknya dulu." }, { status: 400 });
-    }
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

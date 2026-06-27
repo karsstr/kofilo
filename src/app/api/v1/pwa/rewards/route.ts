@@ -4,7 +4,6 @@ import { verifyPwaToken } from "@/lib/pwa-jwt";
 
 export async function POST(req: NextRequest) {
   try {
-    // 🔥 PERBAIKAN: Prioritaskan token dari Header (Zustand) daripada Cookie lama
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
     const token = authHeader?.split(" ")[1] || req.cookies.get("pwa_token")?.value;
     
@@ -19,9 +18,19 @@ export async function POST(req: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const customer = await tx.customer.findUnique({ where: { id: decoded.sub } });
       
-      // Jika error ini muncul, berarti Token-nya mengandung ID yang sudah dihapus
       if (!customer) throw new Error("Sesi tidak valid atau Pelanggan tidak ditemukan. Silakan Logout dan Login ulang.");
       if (customer.points < pointsCost) throw new Error("Poin tidak cukup");
+
+      // 🔥 LOGIKA BARU: Cek stok reward dari database secara real-time
+      const reward = await tx.rewardProduct.findUnique({ where: { id: productId } });
+      if (!reward) throw new Error("Reward tidak ditemukan");
+      if (reward.qtyExchange <= 0) throw new Error("Kuota reward sudah habis");
+
+      // 🔥 LOGIKA BARU: Kurangi qtyExchange sebanyak 1
+      await tx.rewardProduct.update({
+        where: { id: productId },
+        data: { qtyExchange: { decrement: 1 } }
+      });
 
       const updatedCustomer = await tx.customer.update({
         where: { id: customer.id },
@@ -38,6 +47,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("[POST /api/v1/pwa/rewards]", error);
-    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 400 });
   }
 }

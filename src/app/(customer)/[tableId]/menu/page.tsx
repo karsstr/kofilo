@@ -88,48 +88,24 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
     return () => clearInterval(timer);
   }, [activeBanners.length]);
 
-  // ── FETCH MENU ──
+  // ── FETCH MENU ── (🔥 HANYA BLOK INI YANG DIUBAH 🔥)
   useEffect(() => {
     let isMounted = true; 
     const fetchMenu = async () => {
       try {
-        const res = await fetch('/api/products', { headers: { 'Accept': 'application/json' } });
-        const contentType = res.headers.get("content-type");
-        if (!res.ok || !contentType || !contentType.includes("application/json")) return; 
+        // Menggunakan endpoint PWA yang sudah mematuhi urutan Superadmin
+        const res = await fetch('/api/v1/pwa/menus', { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) return; 
 
         const data = await res.json();
         if (!isMounted) return;
 
-        const rawProducts = data.products ?? [];
-        const grouped: Record<string, MenuItem[]> = {};
-        const categoryDrinkMap: Record<string, boolean> = {};
-
-        rawProducts.forEach((p: any) => {
-          const catName = p.category?.name || 'Lainnya';
-          const isItDrink = p.category?.isDrink === true;
-          categoryDrinkMap[catName] = isItDrink;
-
-          if (!grouped[catName]) grouped[catName] = [];
-          grouped[catName].push({
-            id: p.id, name: p.name, price: p.price, image: p.image, sku: p.sku,
-            isAvailable: p.isAvailable, categoryId: p.categoryId, categoryName: catName, isDrink: isItDrink,
-          });
-        });
-
-        const sortedCategoryNames = Object.keys(grouped).sort((a, b) => {
-           const aIsDrink = categoryDrinkMap[a] ?? false;
-           const bIsDrink = categoryDrinkMap[b] ?? false;
-           if (aIsDrink && !bIsDrink) return -1;
-           if (!aIsDrink && bIsDrink) return 1;
-           return a.localeCompare(b);
-        });
-
-        const menuCategories: MenuCategory[] = sortedCategoryNames.map(catName => ({
-          categoryName: catName, items: grouped[catName]
-        }));
-
+        const menuCategories: MenuCategory[] = data.categories || [];
         setCategories(menuCategories);
-        if (menuCategories.length > 0) setActiveCategory(menuCategories[0].categoryName);
+        
+        if (menuCategories.length > 0) {
+          setActiveCategory(menuCategories[0].categoryName);
+        }
       } catch (err) {
         if (isMounted) console.error('Fetch error:', err);
       } finally {
@@ -201,22 +177,29 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
   useEffect(() => {
     const handleScroll = () => {
       if (categories.length === 0) return;
-      const NAV_OFFSET = 140; 
+
       let currentActive = categories[0].categoryName;
+
+      const detectionLine = window.innerHeight * 0.4; 
 
       for (const cat of categories) {
         const section = document.getElementById(`section-${cat.categoryName}`);
         if (section) {
           const rect = section.getBoundingClientRect();
-          if (rect.top <= NAV_OFFSET + 20) {
+          if (rect.top <= detectionLine) {
             currentActive = cat.categoryName;
           }
         }
       }
-      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 10) {
+      
+      // Deteksi jika scroll sudah benar-benar mentok bawah (untuk tab terakhir)
+      if (Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 5) {
         currentActive = categories[categories.length - 1].categoryName;
       }
-      if (activeCategory !== currentActive) setActiveCategory(currentActive);
+
+      if (activeCategory !== currentActive) {
+        setActiveCategory(currentActive);
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });

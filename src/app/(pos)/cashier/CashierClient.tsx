@@ -43,7 +43,10 @@ interface PwaOrder {
 
 export default function CashierClient({ cashierName }: { cashierName: string }) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>("Coffee");
+  // 🔥 UBAHAN 1: Tambahkan state categories untuk menyimpan urutan dari database
+  const [categories, setCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>("");
+  
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   
@@ -99,7 +102,7 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
   const router = useRouter();
   const { cart, addToCart, updateQuantity, removeFromCart } = useCartStore();
 
-  // 🔥 TAMBAHAN: Fetch Data Profil Toko
+  // 🔥 Fetch Data Profil Toko
   useEffect(() => {
     fetch("/api/public/store")
       .then(res => res.json())
@@ -202,14 +205,22 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
     }
   };
 
+  // 🔥 UBAHAN 2: Fetch kategori dan produk bersamaan dari API untuk menjamin urutan
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/products");
-        const data = await res.json();
+        const [catRes, prodRes] = await Promise.all([
+          fetch("/api/categories"),
+          fetch("/api/products")
+        ]);
         
-        const rawProducts = data.products ?? [];
+        const catData = await catRes.json();
+        const prodData = await prodRes.json();
         
+        const fetchedCategories = catData.categories?.map((c: any) => c.name) || [];
+        setCategories(fetchedCategories);
+
+        const rawProducts = prodData.products ?? [];
         const processedProducts = rawProducts.map((p: any) => {
           const isItDrink = p.category?.isDrink === true;
           return {
@@ -220,12 +231,12 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
 
         setProducts(processedProducts);
       } catch (error) {
-        console.error("Gagal ambil produk:", error);
+        console.error("Gagal ambil data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -246,11 +257,9 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
     }
   }, [cashierName]);
 
-  const dynamicCategories = Array.from(new Set(products.map(p => p.category?.name || "Lainnya")));
-  const categories = dynamicCategories.length > 0 ? dynamicCategories : ["Coffee", "Non-Coffee", "Mocktail", "Pastry", "Dessert"];
-  
+  // 🔥 UBAHAN 3: Otomatis pilih tab pertama tanpa merusak urutan asli
   useEffect(() => {
-     if (categories.length > 0 && !categories.includes(activeCategory)) {
+     if (categories.length > 0 && !activeCategory) {
          setActiveCategory(categories[0]);
      }
   }, [categories, activeCategory]);
@@ -390,7 +399,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <header className="px-8 py-6 bg-white/80 backdrop-blur-md flex justify-between items-center shrink-0 border-b border-gray-100 z-10 sticky top-0">
           <div className="flex items-center gap-4">
-            {/* 🔥 UBAHAN: Menampilkan Logo Dinamis di Kasir */}
             {storeInfo.logo ? (
               <img src={storeInfo.logo} alt="Logo" className="w-11 h-11 rounded-2xl object-cover bg-white shadow-lg border border-gray-100" />
             ) : (
@@ -399,7 +407,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
               </div>
             )}
             <div>
-              {/* 🔥 UBAHAN: Menampilkan Nama Dinamis di Kasir */}
               <h1 className="font-extrabold text-xl leading-none text-[#1a1f36] tracking-tight">{storeInfo.name}</h1>
               <p className="text-[13px] text-gray-500 mt-1 font-medium flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -923,7 +930,6 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
           <div className="bg-white rounded-[32px] w-full max-w-4xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-[0.96] duration-300 ease-out max-h-[90vh]">
             
             {/* KIRI: METODE PEMBAYARAN */}
-{/* KIRI: METODE PEMBAYARAN */}
             <div className="flex-1 p-10 flex flex-col overflow-y-auto">
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-3xl font-black text-[#1a1f36] tracking-tight">Payment</h2>
@@ -1016,12 +1022,10 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
               <ReceiptTicket
                 data={{
                   storeName: storeInfo.name,
-                  // 🔥 PERBAIKAN: Gunakan waktu saat ini (bukan dari history) 🔥
                   date: new Date().toLocaleDateString('id-ID'),
                   time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                   txId: transactionId || "TX00000000",
                   cashierName: cashierName.split(' ')[0],
-                  // 🔥 PERBAIKAN: Gunakan total belanja dari keranjang saat ini 🔥
                   subtotal: subtotal,
                   tax: taxAmount,
                   taxRate: storeInfo.taxRate,

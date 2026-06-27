@@ -56,6 +56,17 @@ export default function LoyaltyMembersPage() {
   const [formData, setFormData] = useState({ name: "", phone: "", points: 0 });
   const [pagination, setPagination] = useState<PaginationData>({ currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 10 });
 
+  // 🔥 STATE UNTUK TOAST NOTIFICATION 🔥
+  const [toast, setToast] = useState({ show: false, type: "success" as "success" | "error", message: "" });
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ show: true, type, message });
+    setTimeout(() => setToast((t) => ({ ...t, show: false })), 3500);
+  };
+
+  // 🔥 STATE UNTUK MODAL HAPUS MEMBER 🔥
+  const [memberToDelete, setMemberToDelete] = useState<LoyaltyMember | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const todayStr = new Date().toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
 
   useEffect(() => {
@@ -88,10 +99,21 @@ export default function LoyaltyMembersPage() {
     fetchLoyaltyData();
   }, [debouncedSearch, pagination.currentPage, activeFilter]);
 
-  const handleDeleteMember = async (id: string) => {
-    if (!confirm("Hapus member ini?")) return;
-    setMembers((prev) => prev.filter((m) => m.id !== id));
-    try { await fetch(`/api/loyalty?id=${id}`, { method: "DELETE" }); } catch (err) { console.error(err); }
+  // 🔥 FUNGSI EKSEKUSI HAPUS DARI MODAL 🔥
+  const executeDeleteMember = async () => {
+    if (!memberToDelete) return;
+    setIsDeleting(true);
+    try {
+      await fetch(`/api/loyalty?id=${memberToDelete.id}`, { method: "DELETE" });
+      setMembers((prev) => prev.filter((m) => m.id !== memberToDelete.id));
+      showToast("success", "Member berhasil dihapus!");
+    } catch (err) {
+      console.error(err);
+      showToast("error", "Gagal menghapus member.");
+    } finally {
+      setIsDeleting(false);
+      setMemberToDelete(null);
+    }
   };
 
   const openAddModal = () => { setFormData({ name: "", phone: "", points: 0 }); setEditId(null); setIsModalOpen(true); };
@@ -119,7 +141,24 @@ export default function LoyaltyMembersPage() {
   const handlePageChange = (newPage: number) => { if (newPage >= 1 && newPage <= pagination.totalPages) setPagination((p) => ({ ...p, currentPage: newPage })); };
 
   return (
-    <div className="flex-1 p-8 lg:p-10 overflow-y-auto bg-[#fafbfc] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white">
+    <div className="flex-1 p-8 lg:p-10 overflow-y-auto bg-[#fafbfc] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white relative">
+      
+      {/* 🔥 TOAST NOTIFICATION 🔥 */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-[200] animate-in slide-in-from-top-5 fade-in duration-300">
+          <div className={`rounded-2xl p-4 shadow-xl border flex items-center gap-3 min-w-[300px] bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === "success" ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"}`}>
+              {toast.type === "success" ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              )}
+            </div>
+            <p className="text-[14px] font-bold text-[#1a1f36]">{toast.message}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-[28px] font-black tracking-tight text-[#1a1f36]">Member</h1>
@@ -211,7 +250,8 @@ export default function LoyaltyMembersPage() {
                         <button onClick={() => openEditModal(m)} className="p-2.5 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all duration-200" title="Edit Member">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
                         </button>
-                        <button onClick={() => handleDeleteMember(m.id)} className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200" title="Delete Member">
+                        {/* 🔥 UBAHAN: Tombol Hapus memanggil Modal Pop-up 🔥 */}
+                        <button onClick={() => setMemberToDelete(m)} className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200" title="Delete Member">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                         </button>
                       </div>
@@ -290,6 +330,37 @@ export default function LoyaltyMembersPage() {
           </div>
         </div>
       )}
+
+      {/* 🔥 MODAL KONFIRMASI HAPUS KHUSUS MEMBER 🔥 */}
+      {memberToDelete && (
+        <div className="fixed inset-0 z-[120] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-gray-100 text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h3 className="text-xl font-black text-[#1a1f36] mb-2">Hapus Member?</h3>
+            <p className="text-gray-500 text-[13px] font-medium mb-6">
+              Yakin hapus <strong className="text-gray-800">{memberToDelete.name && memberToDelete.name !== "-" ? memberToDelete.name : memberToDelete.phone}</strong>? Data poin akan ikut terhapus.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setMemberToDelete(null)}
+                className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={executeDeleteMember}
+                disabled={isDeleting}
+                className="flex-1 py-3 text-white font-bold bg-red-600 hover:bg-red-700 rounded-xl active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

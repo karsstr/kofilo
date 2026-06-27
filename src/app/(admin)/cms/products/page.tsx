@@ -2,15 +2,20 @@
 
 // =============================================================
 // Menu Management Page — (admin)/cms/products/page.tsx
-// CRUD Produk + Modal CRUD Category (Pop-up)
+// CRUD Produk + Modal CRUD Category (Pop-up) + DND Categories
 // =============================================================
 
 import { useState, useEffect, useCallback, useRef } from "react";
+// 🔥 1. IMPORT DND KIT UNTUK DRAG AND DROP KATEGORI 🔥
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Category {
   id: string;
   name: string;
   isDrink: boolean;
+  sortOrder?: number; // 🔥 Tambahan untuk DND
 }
 
 interface Product {
@@ -25,11 +30,61 @@ interface Product {
   sold?: number;
 }
 
+// 🔥 2. KOMPONEN BARIS KATEGORI YANG BISA DI-DRAG 🔥
+function SortableCategoryRow({ cat, openEditCatForm, setCatToDelete }: { cat: Category, openEditCatForm: any, setCatToDelete: any }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id });
+  const style = { 
+    transform: CSS.Transform.toString(transform), 
+    transition, 
+    zIndex: isDragging ? 50 : 'auto', 
+    opacity: isDragging ? 0.9 : 1 
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className={`group transition-colors ${isDragging ? 'bg-gray-50 shadow-lg relative' : 'hover:bg-gray-50/50'}`}>
+      <td className="py-3.5 align-middle pl-2 w-10">
+        <button {...attributes} {...listeners} className="p-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" /></svg>
+        </button>
+      </td>
+      <td className="py-3.5 align-middle">
+        <span className="font-bold text-[14px] text-[#1a1f36]">{cat.name}</span>
+      </td>
+      <td className="py-3.5 align-middle text-center">
+        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${cat.isDrink ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"}`}>
+          {cat.isDrink ? "Minuman" : "Makanan"}
+        </span>
+      </td>
+      <td className="py-3.5 align-middle text-right">
+        <div className="flex justify-end items-center gap-1">
+          <button onClick={() => openEditCatForm(cat)} className="p-2 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all" title="Edit">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
+          </button>
+          <button onClick={() => setCatToDelete(cat)} className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all" title="Hapus">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+
+  // 🔥 3. TOAST STATE GLOBAL 🔥
+  const [toast, setToast] = useState({ show: false, type: "success" as "success" | "error", message: "" });
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ show: true, type, message });
+    setTimeout(() => setToast((t) => ({ ...t, show: false })), 3500);
+  };
+
+  // 🔥 4. PRODUCT MODAL HAPUS KUSTOM 🔥
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isProductDeleting, setIsProductDeleting] = useState(false);
 
   // ── Drag-to-Scroll State ──────────────────────────────────
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -54,16 +109,20 @@ export default function ProductsPage() {
   const [catError, setCatError] = useState("");
   const [catSuccess, setCatSuccess] = useState("");
 
-  // Tambahan State untuk Hapus Kategori Kustom
   const [catToDelete, setCatToDelete] = useState<Category | null>(null);
   const [isCatDeleting, setIsCatDeleting] = useState(false);
 
-  // Form tambah/edit kategori
   const [catEditId, setCatEditId] = useState<string | null>(null);
   const [catName, setCatName] = useState("");
   const [catIsDrink, setCatIsDrink] = useState(false);
   const [isAddCatFormOpen, setIsAddCatFormOpen] = useState(false);
   const [catSubmitting, setCatSubmitting] = useState(false);
+
+  // 🔥 DND SENSORS 🔥
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const todayStr = new Date().toLocaleDateString("en-US", {
     weekday: "short",
@@ -72,15 +131,10 @@ export default function ProductsPage() {
     day: "numeric",
   });
 
-  // Fungsi untuk menampilkan pesan otomatis hilang (Auto-hide)
   const showCatMessage = (type: 'success' | 'error', msg: string) => {
     if (type === 'success') setCatSuccess(msg);
     else setCatError(msg);
-    
-    setTimeout(() => {
-      setCatSuccess("");
-      setCatError("");
-    }, 3500); // Pesan akan hilang dalam 3.5 detik
+    setTimeout(() => { setCatSuccess(""); setCatError(""); }, 3500); 
   };
 
   // ── Fetch Data ────────────────────────────────────────────
@@ -145,25 +199,32 @@ export default function ProductsPage() {
         body: JSON.stringify({ isAvailable: updatedVal }),
       });
       if (!res.ok) throw new Error("Gagal update stok");
+      showToast("success", updatedVal ? "Produk tersedia!" : "Produk disembunyikan!");
     } catch {
-      alert("Gagal mengupdate ketersediaan produk");
+      showToast("error", "Gagal mengupdate ketersediaan produk");
       setProducts((prev) =>
         prev.map((p) => (p.id === id ? { ...p, isAvailable: currentVal } : p))
       );
     }
   }
 
-  async function handleDeleteProduct(id: string) {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+  // 🔥 5. EKSEKUSI HAPUS PRODUCT KUSTOM 🔥
+  async function executeDeleteProduct() {
+    if (!productToDelete) return;
+    setIsProductDeleting(true);
     try {
-      const res = await fetch(`/api/products?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/products?id=${productToDelete.id}`, { method: "DELETE" });
       if (res.ok) {
-        setProducts((prev) => prev.filter((p) => p.id !== id));
+        setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
+        showToast("success", "Produk berhasil dihapus!");
       } else {
-        alert("Gagal menghapus produk");
+        showToast("error", "Gagal menghapus produk");
       }
     } catch (err) {
-      console.error(err);
+      showToast("error", "Terjadi kesalahan jaringan");
+    } finally {
+      setIsProductDeleting(false);
+      setProductToDelete(null);
     }
   }
 
@@ -195,7 +256,7 @@ export default function ProductsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name || !price || !categoryId) {
-      alert("Nama, harga, dan kategori wajib diisi");
+      showToast("error", "Nama, harga, dan kategori wajib diisi");
       return;
     }
     const payload = { name, price: Number(price), sku: sku || null, categoryId, isAvailable, image: image || null };
@@ -208,7 +269,8 @@ export default function ProductsPage() {
           const data = await res.json();
           setProducts((prev) => prev.map((p) => (p.id === editId ? { ...data.product, sold: p.sold } : p)));
           setIsOpen(false);
-        } else { alert("Gagal menyimpan perubahan"); }
+          showToast("success", "Perubahan produk berhasil disimpan!");
+        } else { showToast("error", "Gagal menyimpan perubahan"); }
       } else {
         const res = await fetch("/api/products", {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -217,9 +279,10 @@ export default function ProductsPage() {
           const data = await res.json();
           setProducts((prev) => [...prev, { ...data.product, sold: 0 }]);
           setIsOpen(false);
-        } else { alert("Gagal menambahkan produk"); }
+          showToast("success", "Produk baru berhasil ditambahkan!");
+        } else { showToast("error", "Gagal menambahkan produk"); }
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { showToast("error", "Terjadi kesalahan jaringan"); }
   }
 
   // ── Category Modal Actions ────────────────────────────────
@@ -275,7 +338,6 @@ export default function ProductsPage() {
     }
   }
 
-  // Fungsi Eksekusi Hapus Kategori Kustom
   async function executeCatDelete() {
     if (!catToDelete) return;
     setIsCatDeleting(true);
@@ -296,16 +358,61 @@ export default function ProductsPage() {
       }
       
       showCatMessage("success", "Kategori berhasil dihapus.");
+      showToast("success", "Kategori beserta isinya berhasil dihapus."); // Munculkan toast global juga
     } catch {
       showCatMessage("error", "Terjadi kesalahan jaringan");
     } finally {
       setIsCatDeleting(false);
-      setCatToDelete(null); // Tutup pop-up
+      setCatToDelete(null); 
+    }
+  }
+
+  // 🔥 6. FUNGSI MENYIMPAN URUTAN DRAG & DROP KATEGORI 🔥
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setCategories((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        const newArray = arrayMove(items, oldIndex, newIndex);
+        saveCategoryReorder(newArray); // Simpan perubahan ke API
+        return newArray;
+      });
+    }
+  }
+
+  async function saveCategoryReorder(newCategories: Category[]) {
+    // Siapkan payload dengan sortOrder berdasarkan index array baru
+    const reorderedPayload = newCategories.map((c, index) => ({ id: c.id, sortOrder: index }));
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reorder: true, categories: reorderedPayload })
+      });
+      if (!res.ok) showCatMessage("error", "Gagal menyimpan urutan menu");
+    } catch (e) {
+      showCatMessage("error", "Terjadi kesalahan saat menyimpan urutan");
     }
   }
 
   return (
-    <div className="flex-1 p-8 lg:p-10 overflow-y-auto bg-[#fafbfc] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white">
+    <div className="flex-1 p-8 lg:p-10 overflow-y-auto bg-[#fafbfc] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white relative">
+
+      {/* 🔥 TOAST NOTIFICATION GLOBAL 🔥 */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-[200] animate-in slide-in-from-top-5 fade-in duration-300">
+          <div className={`rounded-2xl p-4 shadow-xl border flex items-center gap-3 min-w-[300px] bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === "success" ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"}`}>
+              {toast.type === "success" ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              )}
+            </div>
+            <p className="text-[14px] font-bold text-[#1a1f36]">{toast.message}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── HEADER ─────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
@@ -442,7 +549,7 @@ export default function ProductsPage() {
                         <button onClick={() => openEditModal(p)} className="p-2.5 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all duration-200" title="Edit">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
                         </button>
-                        <button onClick={() => handleDeleteProduct(p.id)} className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200" title="Delete">
+                        <button onClick={() => setProductToDelete(p)} className="p-2.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200" title="Delete">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                         </button>
                       </div>
@@ -454,6 +561,36 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      {/* ── MODAL KONFIRMASI HAPUS KHUSUS PRODUCT ── */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-[120] bg-[#1a1f36]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            </div>
+            <h3 className="text-xl font-black text-[#1a1f36] mb-2">Hapus Produk?</h3>
+            <p className="text-gray-500 text-[13px] font-medium mb-6">
+              Yakin hapus <strong className="text-gray-800">{productToDelete.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setProductToDelete(null)}
+                className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={executeDeleteProduct}
+                disabled={isProductDeleting}
+                className="flex-1 py-3 text-white font-bold bg-red-600 hover:bg-red-700 rounded-xl active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isProductDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================================
           MODAL: ADD / EDIT PRODUCT
@@ -558,7 +695,7 @@ export default function ProductsPage() {
       )}
 
       {/* ============================================================
-          MODAL: CATEGORY MANAGEMENT POP-UP
+          MODAL: CATEGORY MANAGEMENT POP-UP DENGAN DRAG AND DROP
           ============================================================ */}
       {isCatModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1a1f36]/40 backdrop-blur-sm">
@@ -568,7 +705,9 @@ export default function ProductsPage() {
             <div className="flex justify-between items-center px-8 pt-8 pb-5 shrink-0">
               <div>
                 <h3 className="text-[22px] font-black text-[#1a1f36] tracking-tight">Manage Categories</h3>
-                <p className="text-[13px] text-gray-400 font-medium mt-0.5">Add, edit, or remove product categories.</p>
+                <p className="text-[13px] text-gray-400 font-medium mt-0.5 flex items-center gap-1">
+                  Geser ikon <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" /></svg> untuk mengubah urutan menu.
+                </p>
               </div>
               <button onClick={() => setIsCatModalOpen(false)} className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 transition-colors active:scale-90">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -591,50 +730,37 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {/* Category Table */}
+            {/* Category Table DENGAN FITUR DND */}
             <div className="overflow-y-auto flex-1 px-8 relative">
               {catLoading ? (
                 <div className="py-10 flex justify-center"><svg className="animate-spin h-6 w-6 text-[#6C4E31]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
               ) : categories.length === 0 ? (
                 <div className="py-10 text-center text-gray-400 text-[14px] font-medium">Belum ada kategori. Tambahkan kategori baru di bawah.</div>
               ) : (
-                <table className="w-full text-left mb-4">
-                  <thead>
-                    <tr className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest border-b border-gray-100">
-                      <th className="pb-3">Nama Category</th>
-                      <th className="pb-3 text-center w-28">Type</th>
-                      <th className="pb-3 text-right w-28">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {categories.map((cat) => (
-                      <tr key={cat.id} className="group hover:bg-gray-50/50 transition-colors">
-                        <td className="py-3.5 align-middle">
-                          <span className="font-bold text-[14px] text-[#1a1f36]">{cat.name}</span>
-                        </td>
-                        <td className="py-3.5 align-middle text-center">
-                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${cat.isDrink ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"}`}>
-                            {cat.isDrink ? "Minuman" : "Makanan"}
-                          </span>
-                        </td>
-                        <td className="py-3.5 align-middle text-right">
-                          <div className="flex justify-end items-center gap-1">
-                            <button onClick={() => openEditCatForm(cat)}
-                              className="p-2 rounded-xl text-gray-400 hover:text-[#6C4E31] hover:bg-[#6C4E31]/10 transition-all" title="Edit">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
-                            </button>
-                            
-                            {/* Tombol Hapus - Diubah memanggil setCatToDelete */}
-                            <button onClick={() => setCatToDelete(cat)}
-                              className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all" title="Hapus">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                    <table className="w-full text-left mb-4">
+                      <thead>
+                        <tr className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                          <th className="pb-3 w-10"></th>
+                          <th className="pb-3">Nama Category</th>
+                          <th className="pb-3 text-center w-28">Type</th>
+                          <th className="pb-3 text-right w-28">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {categories.map((cat) => (
+                          <SortableCategoryRow 
+                            key={cat.id} 
+                            cat={cat} 
+                            openEditCatForm={openEditCatForm} 
+                            setCatToDelete={setCatToDelete} 
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </SortableContext>
+                </DndContext>
               )}
             </div>
 
