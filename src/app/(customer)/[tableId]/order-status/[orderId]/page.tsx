@@ -37,6 +37,7 @@ export default function EReceiptPage({ params }: { params: Promise<{ tableId: st
             tax,
             total,
             paymentMethod: o.paymentMethod,
+            wifiName: settings.wifiName,
             wifiPassword: settings.wifiPassword,
             footerMessage: settings.receiptFooter,
             items: o.items.map((item: any) => ({

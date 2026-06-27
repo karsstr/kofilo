@@ -214,6 +214,7 @@ model StoreSetting {
 
   // ── TAMBAHAN UNTUK STRUK KASIR ──
   receiptFooter      String?  @db.Text        // Pesan di bawah struk
+  wifiName           String?
   wifiPassword       String?                  // Info WiFi untuk pelanggan
 
   // ── PWA SETTINGS ──

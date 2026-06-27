@@ -18,9 +18,13 @@ export interface ReceiptData {
   cashierName: string;
   items: ReceiptItem[];
   subtotal: number;
-  tax: number;
+  tax?: number;           
+  taxRate?: number;       
+  serviceCharge?: number; 
+  serviceRate?: number;   
   total: number;
   paymentMethod: string;
+  wifiName?: string | null;
   wifiPassword?: string | null;
   footerMessage?: string | null;
 }
@@ -35,7 +39,6 @@ const parseItemName = (fullName: string) => {
 
 export default function ReceiptTicket({ data }: { data: ReceiptData }) {
   return (
-    // Tambahkan class "receipt-ticket" agar nanti gampang di-target oleh CSS Printer Thermal
     <div className="receipt-ticket w-full max-w-[400px] mx-auto bg-white rounded-sm relative shadow-md" style={{ filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.05))" }}>
       <div className="absolute top-0 left-0 right-0 h-2 bg-repeat-x" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
       
@@ -78,15 +81,24 @@ export default function ReceiptTicket({ data }: { data: ReceiptData }) {
           })}
         </div>
 
+        {/* 🔥 TAMPILKAN TAX DAN SERVICE JIKA LEBIH DARI 0 🔥 */}
         <div className="border-t border-dashed border-gray-300 py-3.5 flex flex-col gap-1.5">
           <div className="flex justify-between text-gray-500">
             <span>Subtotal</span>
             <span>Rp {data.subtotal.toLocaleString('id-ID')}</span>
           </div>
-          <div className="flex justify-between text-gray-500">
-            <span>Tax & Service</span>
-            <span>Rp {data.tax.toLocaleString('id-ID')}</span>
-          </div>
+          {!!data.serviceCharge && data.serviceCharge > 0 && (
+            <div className="flex justify-between text-gray-500">
+              <span>Service Charge {data.serviceRate ? `(${data.serviceRate}%)` : ''}</span>
+              <span>Rp {data.serviceCharge.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          {!!data.tax && data.tax > 0 && (
+            <div className="flex justify-between text-gray-500">
+              <span>Tax {data.taxRate ? `(${data.taxRate}%)` : ''}</span>
+              <span>Rp {data.tax.toLocaleString('id-ID')}</span>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-dashed border-gray-300 py-3.5 flex justify-between items-center font-black text-[15px] text-[#1a1f36]">
@@ -96,9 +108,9 @@ export default function ReceiptTicket({ data }: { data: ReceiptData }) {
 
         {data.wifiPassword && (
           <div className="border-t border-dashed border-gray-300 pt-5 pb-1">
-            <div className="text-center text-[11px] bg-gray-100/50 py-2.5 rounded-lg border border-gray-200">
-              <span className="font-bold">Wi-Fi:</span> Kofilo_Guest<br/>
-              <span className="font-bold text-[#6C4E31]">Pass: {data.wifiPassword}</span>
+            <div className="flex flex-col items-center justify-center text-[11px] bg-gray-100/50 py-2.5 rounded-lg border border-gray-200 leading-tight gap-1">
+              <div><span className="font-bold">Wi-Fi:</span> {data.wifiName || "Guest_WiFi"}</div>
+              <div className="font-bold text-[#6C4E31]">Pass: {data.wifiPassword}</div>
             </div>
           </div>
         )}

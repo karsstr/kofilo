@@ -18,12 +18,31 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
   const [error, setError] = useState('');
   const [showAuthDrawer, setShowAuthDrawer] = useState(false);
   
-  // QRIS state
   const [qrString, setQrString] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [pollingQris, setPollingQris] = useState(false);
 
-  // Helper: Refresh poin customer dari backend agar sinkron dengan POS/Superadmin
+  // 🔥 State Keuangan & Settings 🔥
+  const [storeSettings, setStoreSettings] = useState({ 
+    taxRate: 0, serviceCharge: 0, acceptCash: true, acceptQris: true 
+  });
+
+  useEffect(() => {
+    fetch('/api/public/store').then(res => res.json()).then(data => {
+      if(data.settings) {
+        setStoreSettings({
+          taxRate: data.settings.taxRate || 0,
+          serviceCharge: data.settings.serviceCharge || 0,
+          acceptCash: data.settings.acceptCash ?? true,
+          acceptQris: data.settings.acceptQris ?? true
+        });
+        // Default select first available method
+        if (data.settings.acceptCash !== false) setPaymentMethod('CASH');
+        else if (data.settings.acceptQris !== false) setPaymentMethod('QRIS');
+      }
+    }).catch(() => {});
+  }, []);
+
   const refreshCustomerPoints = async () => {
     if (!customer?.token) return;
     try {
@@ -40,22 +59,22 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           phone: data.customer.phone,
         });
       }
-    } catch {
-      // silent fail
-    }
+    } catch { }
   };
 
-  // Auto-create Komerce payment when QRIS selected
+  // 🔥 HITUNGAN KEUNGAN DINAMIS 🔥
+  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const taxAmount = Math.round(subtotal * (storeSettings.taxRate / 100));
+  const serviceAmount = Math.round(subtotal * (storeSettings.serviceCharge / 100));
+  const total = subtotal + taxAmount + serviceAmount;
+
   useEffect(() => {
     let cancelled = false;
     const createQrisPayment = async () => {
       if (!customer?.token || paymentMethod !== 'QRIS') return;
-      
       setIsProcessing(true);
       setError('');
-      
       try {
-        // Build customer info
         const customerInfo = {
           name: customer.name || 'Customer',
           email: `${customer.phone}@guest.local`,
@@ -68,8 +87,6 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           price: item.price,
         }));
 
-        const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0) * 1.1;
-
         const res = await fetch('/api/v1/pwa/payment/create', {
           method: 'POST',
           headers: {
@@ -79,7 +96,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           body: JSON.stringify({
             order_id: `PWA-${Date.now()}`,
             payment_type: 'qris',
-            amount: Math.round(total),
+            amount: total, // 🔥 Pass dynamic total
             customer: customerInfo,
             items,
           }),
@@ -98,7 +115,6 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           setPaymentId(data.data.payment_id || null);
           setPollingQris(true);
         } else if (data.data?.token) {
-          // Fallback: use payment page URL
           const payUrl = `https://pay-sandbox.komerce.id/${data.data.token}`;
           setQrString(payUrl);
           setPaymentId(data.data.payment_id || null);
@@ -113,12 +129,10 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
 
     createQrisPayment();
     return () => { cancelled = true; };
-  }, [paymentMethod, customer?.token]);
+  }, [paymentMethod, customer?.token, total]); // Added total to deps
 
-  // Poll QRIS payment status
   useEffect(() => {
     if (!pollingQris || !paymentId) return;
-
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/v1/payment/status/${paymentId}`);
@@ -137,25 +151,20 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           setQrString(null);
           setPaymentId(null);
         }
-      } catch {
-        // silent fail on poll error
-      }
+      } catch { }
     }, 3000);
-
     return () => clearInterval(interval);
   }, [pollingQris, paymentId]);
 
   const handleQrisPaid = async () => {
     if (!customer?.token) return;
-    
     setIsProcessing(true);
     setError('');
     setQrString(null);
 
     try {
-      // 🔥 PERBAIKAN: Tidak membuang ID '-reward' dan mengirim isReward 🔥
       const items = cart.map((item) => ({
-        productId: item.id, // Dibiarkan utuh 
+        productId: item.id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -169,7 +178,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           'Content-Type': 'application/json',
           Authorization: `Bearer ${customer.token}`,
         },
-        body: JSON.stringify({ tableId, items, paymentMethod: 'QRIS' }),
+        body: JSON.stringify({ tableId, items, paymentMethod: 'QRIS', totalAmount: total }), // Pass totalAmount
       });
 
       const data = await res.json();
@@ -198,14 +207,12 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
     if (!paymentMethod || !customer?.token) return;
     
     if (paymentMethod === 'CASH') {
-      // Cash: langsung buat order tanpa API payment
       setIsProcessing(true);
       setError('');
 
       try {
-        // 🔥 PERBAIKAN: Tidak membuang ID '-reward' dan mengirim isReward 🔥
         const items = cart.map((item) => ({
-          productId: item.id, // Dibiarkan utuh
+          productId: item.id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
@@ -219,7 +226,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
             'Content-Type': 'application/json',
             Authorization: `Bearer ${customer.token}`,
           },
-          body: JSON.stringify({ tableId, items, paymentMethod: 'CASH' }),
+          body: JSON.stringify({ tableId, items, paymentMethod: 'CASH', totalAmount: total }), // Pass totalAmount
         });
 
         const data = await res.json();
@@ -243,12 +250,7 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
         setIsProcessing(false);
       }
     }
-    // QRIS: handled by useEffect above, button disabled during qr display
   };
-
-  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const taxAndService = subtotal * 0.10;
-  const total = subtotal + taxAndService;
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric', year: 'numeric' });
@@ -261,8 +263,6 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans text-[#1a1f36] flex flex-col pb-24">
-      
-      {/* HEADER */}
       <header className="bg-white px-6 py-5 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Link href={`/${tableId}/cart`} className="text-gray-500 hover:text-black transition-colors">
@@ -275,14 +275,12 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
       </header>
 
       <main className="p-6 flex-1 flex flex-col gap-6 max-w-md mx-auto w-full">
-        
         {error && (
           <div className="bg-red-50 text-red-600 text-sm font-medium rounded-xl p-4 border border-red-100 text-center">
             {error}
           </div>
         )}
 
-        {/* Show QRIS QR Code if generated */}
         {qrString && (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
             <h2 className="font-extrabold text-lg tracking-wide mb-2">Scan QRIS untuk Bayar</h2>
@@ -301,7 +299,6 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           </div>
         )}
 
-        {/* Receipt (only show when not showing QR) */}
         {!qrString && (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative">
             <div className="text-center mb-6">
@@ -341,10 +338,19 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
                 <span>Subtotal</span>
                 <span>Rp {subtotal.toLocaleString('id-ID')}</span>
               </div>
-              <div className="flex justify-between text-xs font-medium text-gray-500">
-                <span>Tax (10%)</span>
-                <span>Rp {taxAndService.toLocaleString('id-ID')}</span>
-              </div>
+              {/* 🔥 TAMPILKAN JIKA LEBIH DARI 0 🔥 */}
+              {serviceAmount > 0 && (
+                <div className="flex justify-between text-xs font-medium text-gray-500">
+                  <span>Service Charge ({storeSettings.serviceCharge}%)</span>
+                  <span>Rp {serviceAmount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              {taxAmount > 0 && (
+                <div className="flex justify-between text-xs font-medium text-gray-500">
+                  <span>Tax ({storeSettings.taxRate}%)</span>
+                  <span>Rp {taxAmount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center mt-2">
                 <span className="font-extrabold text-base">TOTAL</span>
                 <span className="font-extrabold text-base">Rp {total.toLocaleString('id-ID')}</span>
@@ -353,39 +359,45 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           </div>
         )}
 
-        {/* Payment Method Selection (only when QR not shown) */}
         {!qrString && (
           <div>
             <h3 className="font-bold text-sm text-gray-500 uppercase tracking-wider mb-3">Select Payment Method</h3>
             <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => { setPaymentMethod('CASH'); setQrString(null); setPaymentId(null); }}
-                className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
-                  paymentMethod === 'CASH' 
-                  ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
-                  : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.242c0-.754-.727-1.294-1.453-1.096a60.07 60.07 0 01-15.797 2.101c-.727.198-1.453.342-1.453 1.096V18.75z" />
-                </svg>
-                <span className="font-bold text-sm">Pay at Cashier</span>
-              </button>
+              
+              {/* 🔥 SEMBUNYIKAN JIKA DI-DISABLE DI ADMIN 🔥 */}
+              {storeSettings.acceptCash && (
+                <button 
+                  onClick={() => { setPaymentMethod('CASH'); setQrString(null); setPaymentId(null); }}
+                  className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                    paymentMethod === 'CASH' 
+                    ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
+                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.242c0-.754-.727-1.294-1.453-1.096a60.07 60.07 0 01-15.797 2.101c-.727.198-1.453.342-1.453 1.096V18.75z" />
+                  </svg>
+                  <span className="font-bold text-sm">Pay at Cashier</span>
+                </button>
+              )}
 
-              <button 
-                onClick={() => { setPaymentMethod('QRIS'); setQrString(null); setPaymentId(null); }}
-                className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
-                  paymentMethod === 'QRIS' 
-                  ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
-                  : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
-                </svg>
-                <span className="font-bold text-sm">QRIS / E-Wallet</span>
-              </button>
+              {storeSettings.acceptQris && (
+                <button 
+                  onClick={() => { setPaymentMethod('QRIS'); setQrString(null); setPaymentId(null); }}
+                  className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                    paymentMethod === 'QRIS' 
+                    ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
+                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                  </svg>
+                  <span className="font-bold text-sm">QRIS / E-Wallet</span>
+                </button>
+              )}
+
             </div>
           </div>
         )}
@@ -402,7 +414,6 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
         }}
       />
 
-      {/* FIXED BOTTOM BUTTON */}
       <div className="fixed bottom-0 left-0 right-0 p-5 bg-white border-t border-gray-100 z-20">
         <div className="max-w-md mx-auto">
           {qrString ? (

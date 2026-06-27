@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCartStore } from '@/store/useCartStore';
 import { useRouter } from 'next/navigation';
+import ReceiptTicket from '@/components/shared/ReceiptTicket';
 
 interface Category {
   id: string;
@@ -62,8 +63,17 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // 🔥 TAMBAHAN: State Profil Toko
-  const [storeInfo, setStoreInfo] = useState({ name: "Kofilo", logo: "" });
+  const [storeInfo, setStoreInfo] = useState({ 
+    name: "Kofilo", 
+    logo: "", 
+    wifiName: "", 
+    wifiPassword: "", 
+    receiptFooter: "",
+    taxRate: 0,
+    serviceCharge: 0,
+    acceptCash: true,
+    acceptQris: true
+  });
 
   const [toast, setToast] = useState<{
     show: boolean;
@@ -97,8 +107,17 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
         if (data.settings) {
           setStoreInfo({
             name: data.settings.storeName || "Kofilo",
-            logo: data.settings.logo || ""
+            logo: data.settings.logo || "",
+            wifiName: data.settings.wifiName || "",
+            wifiPassword: data.settings.wifiPassword || "",
+            receiptFooter: data.settings.receiptFooter || "Terima kasih atas kunjungannya!",
+            taxRate: data.settings.taxRate || 0,
+            serviceCharge: data.settings.serviceCharge || 0,
+            acceptCash: data.settings.acceptCash ?? true,
+            acceptQris: data.settings.acceptQris ?? true
           });
+          // Default selection if one is disabled
+          if (data.settings.acceptCash === false) setPaymentMethod('QRIS');
         }
       }).catch(console.error);
   }, []);
@@ -241,8 +260,9 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
   );
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const taxAndService = subtotal * 0.10;
-  const total = subtotal + taxAndService;
+  const taxAmount = Math.round(subtotal * (storeInfo.taxRate / 100));
+  const serviceAmount = Math.round(subtotal * (storeInfo.serviceCharge / 100));
+  const total = subtotal + taxAmount + serviceAmount;
 
   const openModal = (product: Product) => {
     setSelectedProduct(product);
@@ -642,9 +662,17 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
             <div className="flex justify-between text-[13px] font-bold text-gray-400">
               <span>Subtotal</span><span className="text-gray-600">Rp {subtotal.toLocaleString('id-ID')}</span>
             </div>
-            <div className="flex justify-between text-[13px] font-bold text-gray-400">
-              <span>Tax (10%)</span><span className="text-gray-600">Rp {taxAndService.toLocaleString('id-ID')}</span>
-            </div>
+            {/* 🔥 TAMPILKAN JIKA LEBIH DARI 0 🔥 */}
+            {serviceAmount > 0 && (
+              <div className="flex justify-between text-[13px] font-bold text-gray-400">
+                <span>Service Charge ({storeInfo.serviceCharge}%)</span><span className="text-gray-600">Rp {serviceAmount.toLocaleString('id-ID')}</span>
+              </div>
+            )}
+            {taxAmount > 0 && (
+              <div className="flex justify-between text-[13px] font-bold text-gray-400">
+                <span>Tax ({storeInfo.taxRate}%)</span><span className="text-gray-600">Rp {taxAmount.toLocaleString('id-ID')}</span>
+              </div>
+            )}
             <div className="border-t border-dashed border-gray-200 my-1"></div>
             <div className="flex justify-between items-end mt-1">
               <span className="text-sm font-extrabold text-gray-400 mb-0.5">Total</span>
@@ -888,20 +916,25 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
               </div>
 
               <div className="flex gap-4 mb-8">
-                <button 
-                  onClick={() => setPaymentMethod('CASH')}
-                  className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'CASH' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.22a.75.75 0 00-.75-.75h-13.5a.75.75 0 00-.75.75v14.53zM15.75 18.75v-1.5a.75.75 0 00-1.5 0v1.5m-3-1.5v1.5m-3-1.5v1.5m10.5-12.75h-10.5M10.5 9h-3m3 3h-3m3 3h-3m3 0v1.5" /></svg>
-                  CASH
-                </button>
-                <button 
-                  onClick={() => setPaymentMethod('QRIS')}
-                  className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'QRIS' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5h.008v.008h-.008v-.008zM16.5 19.5h.008v.008h-.008v-.008zM19.5 16.5h.008v.008h-.008v-.008zM19.5 19.5h.008v.008h-.008v-.008zM16.5 13.5h.008v.008h-.008v-.008zM13.5 16.5h.008v.008h-.008v-.008zM13.5 19.5h.008v.008h-.008v-.008zM19.5 13.5h.008v.008h-.008v-.008z" /></svg>
-                  QRIS / E-Wallet
-                </button>
+                {/* 🔥 SEMBUNYIKAN JIKA DI-DISABLE DI ADMIN 🔥 */}
+                {storeInfo.acceptCash && (
+                  <button 
+                    onClick={() => setPaymentMethod('CASH')}
+                    className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'CASH' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.22a.75.75 0 00-.75-.75h-13.5a.75.75 0 00-.75.75v14.53zM15.75 18.75v-1.5a.75.75 0 00-1.5 0v1.5m-3-1.5v1.5m-3-1.5v1.5m10.5-12.75h-10.5M10.5 9h-3m3 3h-3m3 3h-3m3 0v1.5" /></svg>
+                    CASH
+                  </button>
+                )}
+                {storeInfo.acceptQris && (
+                  <button 
+                    onClick={() => setPaymentMethod('QRIS')}
+                    className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'QRIS' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5h.008v.008h-.008v-.008zM16.5 19.5h.008v.008h-.008v-.008zM19.5 16.5h.008v.008h-.008v-.008zM19.5 19.5h.008v.008h-.008v-.008zM16.5 13.5h.008v.008h-.008v-.008zM13.5 16.5h.008v.008h-.008v-.008zM13.5 19.5h.008v.008h-.008v-.008zM19.5 13.5h.008v.008h-.008v-.008z" /></svg>
+                    QRIS / E-Wallet
+                  </button>
+                )}
               </div>
 
               {paymentMethod === 'CASH' && (
@@ -947,71 +980,34 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
 
             {/* KANAN: RECEIPT PREVIEW */}
             <div className="w-[380px] bg-[#f4f5f7] border-l border-gray-200 p-10 flex justify-center items-start overflow-y-auto hidden md:flex">
-              <div className="bg-white w-full rounded-sm relative shadow-md" style={{ filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.05))" }}>
-                <div className="absolute top-0 left-0 right-0 h-2 bg-repeat-x" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
-                
-                <div className="p-7 pt-10 pb-10 font-mono text-[12px] text-gray-800">
-                  <div className="text-center mb-8">
-                    {/* 🔥 UBAHAN: Nama Toko di Struk Preview Kasir */}
-                    <h3 className="font-black text-xl mb-1.5 font-sans tracking-tight text-[#1a1f36] uppercase">{storeInfo.name}</h3>
-                    <p className="text-gray-500 text-[10px] uppercase tracking-wider">Jl. Senopati No. 42, Jakarta</p>
-                    <p className="text-gray-500 text-[10px] uppercase tracking-wider">Tel: (021) 555-0123</p>
-                  </div>
-
-                  <div className="border-t border-dashed border-gray-300 py-3.5 flex justify-between text-gray-500 text-[10px] uppercase tracking-wider">
-                    <div>
-                      <p className="mb-1">Date: {new Date().toLocaleDateString('id-ID')}</p>
-                      <p>Time: {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="mb-1">TX: {transactionId}</p>
-                      <p>Cashier: {cashierName.split(' ')[0]}</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-dashed border-gray-300 py-5 flex flex-col gap-4">
-                    {cart.map((item) => {
-                      const { baseName, variants } = parseItemName(item.name);
-                      return (
-                        <div key={item.id}>
-                          <div className="flex justify-between font-bold text-[13px] text-[#1a1f36]">
-                            <span>{item.quantity}x {baseName}</span>
-                            <span>Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
-                          </div>
-                          {variants.length > 0 && (
-                            <div className="text-gray-400 pl-5 mt-1.5 text-[11px] flex flex-col gap-0.5">
-                              {variants.map((v, i) => <div key={i}>- {v}</div>)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="border-t border-dashed border-gray-300 py-4 flex flex-col gap-2">
-                    <div className="flex justify-between text-gray-500">
-                      <span>Subtotal</span>
-                      <span>Rp {subtotal.toLocaleString('id-ID')}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>Tax (10%)</span>
-                      <span>Rp {taxAndService.toLocaleString('id-ID')}</span>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-dashed border-gray-300 py-4 flex justify-between items-center font-black text-[16px] text-[#1a1f36]">
-                    <span>TOTAL</span>
-                    <span>Rp {total.toLocaleString('id-ID')}</span>
-                  </div>
-
-                  <div className="border-t border-dashed border-gray-300 pt-8 pb-2 text-center flex flex-col gap-1.5">
-                    <p className="font-bold text-[13px] text-[#1a1f36]">PAID - {paymentMethod}</p>
-                    <p className="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">Thank you for your visit!</p>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 h-2 bg-repeat-x rotate-180" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
-              </div>
+              <ReceiptTicket
+                data={{
+                  storeName: storeInfo.name,
+                  // 🔥 PERBAIKAN: Gunakan waktu saat ini (bukan dari history) 🔥
+                  date: new Date().toLocaleDateString('id-ID'),
+                  time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                  txId: transactionId || "TX00000000",
+                  cashierName: cashierName.split(' ')[0],
+                  // 🔥 PERBAIKAN: Gunakan total belanja dari keranjang saat ini 🔥
+                  subtotal: subtotal,
+                  tax: taxAmount,
+                  taxRate: storeInfo.taxRate,
+                  serviceCharge: serviceAmount,
+                  serviceRate: storeInfo.serviceCharge,
+                  total: total,
+                  paymentMethod: paymentMethod,
+                  wifiName: storeInfo.wifiName,
+                  wifiPassword: storeInfo.wifiPassword,
+                  footerMessage: storeInfo.receiptFooter,
+                  items: cart.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    subTotal: item.price * item.quantity
+                  }))
+                }}
+              />
             </div>
 
           </div>
@@ -1183,67 +1179,40 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                     <span className="font-bold text-xs text-gray-400">Memuat detail struk...</span>
                   </div>
                 ) : selectedHistoryOrder ? (
-                  <div className="bg-white w-full rounded-sm relative shadow-md" style={{ filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.03))" }}>
-                    {/* Gigi struk atas */}
-                    <div className="absolute top-0 left-0 right-0 h-2 bg-repeat-x" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
-                    
-                    <div className="p-6 pt-9 pb-9 font-mono text-[11.5px] text-gray-800">
-                      <div className="text-center mb-6">
-                        {/* 🔥 UBAHAN: Nama Toko di Struk Detail History */}
-                        <h3 className="font-black text-lg mb-1 font-sans tracking-tight text-[#1a1f36] uppercase">{storeInfo.name}</h3>
-                        <p className="text-gray-400 text-[9px] uppercase tracking-wider">Jl. Senopati No. 42, Jakarta</p>
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-300 py-3 flex justify-between text-gray-400 text-[9px] uppercase tracking-wider">
-                        <div>
-                          <p className="mb-0.5">Date: {new Date(selectedHistoryOrder.createdAt).toLocaleDateString('id-ID')}</p>
-                          <p>Time: {new Date(selectedHistoryOrder.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="mb-0.5">TX: {selectedHistoryOrder.txId}</p>
-                          <p>Cashier: {selectedHistoryOrder.cashierName.split(' ')[0]}</p>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-300 py-4 flex flex-col gap-3">
-                        {selectedHistoryOrder.items.map((item: any) => (
-                          <div key={item.id}>
-                            <div className="flex justify-between font-bold text-[12px] text-[#1a1f36]">
-                              <span>{item.quantity}x {item.productName}</span>
-                              <span>Rp {item.subTotal.toLocaleString('id-ID')}</span>
-                            </div>
-                            <div className="text-gray-400 text-[10px] pl-4 mt-0.5">
-                              @Rp {item.unitPrice.toLocaleString('id-ID')}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-300 py-3.5 flex flex-col gap-1.5">
-                        <div className="flex justify-between text-gray-500">
-                          <span>Subtotal</span>
-                          <span>Rp {Math.floor(selectedHistoryOrder.totalAmount / 1.1).toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-500">
-                          <span>Tax (10%)</span>
-                          <span>Rp {Math.floor(selectedHistoryOrder.totalAmount - (selectedHistoryOrder.totalAmount / 1.1)).toLocaleString('id-ID')}</span>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-300 py-3.5 flex justify-between items-center font-black text-[15px] text-[#1a1f36]">
-                        <span>TOTAL</span>
-                        <span>Rp {selectedHistoryOrder.totalAmount.toLocaleString('id-ID')}</span>
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-300 pt-6 pb-1 text-center flex flex-col gap-1">
-                        <p className="font-bold text-[12px] text-[#1a1f36] uppercase">PAID - {selectedHistoryOrder.paymentMethod}</p>
-                        <p className="text-gray-400 text-[9px] mt-1 uppercase tracking-widest">Thank you for your visit!</p>
-                      </div>
-                    </div>
-
-                    {/* Gigi struk bawah */}
-                    <div className="absolute bottom-0 left-0 right-0 h-2 bg-repeat-x rotate-180" style={{ backgroundImage: 'radial-gradient(circle at 50% 0, transparent 0, transparent 4px, white 4px)', backgroundSize: '12px 12px' }}></div>
+                  
+                  <div className="w-full flex flex-col items-center gap-4">
+                    <ReceiptTicket
+                      data={{
+                        storeName: storeInfo.name,
+                        date: new Date(selectedHistoryOrder.createdAt).toLocaleDateString('id-ID'),
+                        time: new Date(selectedHistoryOrder.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                        txId: selectedHistoryOrder.txId,
+                        cashierName: selectedHistoryOrder.cashierName.split(' ')[0],
+                        subtotal: Math.floor(selectedHistoryOrder.totalAmount / 1.1),
+                        tax: Math.floor(selectedHistoryOrder.totalAmount - (selectedHistoryOrder.totalAmount / 1.1)),
+                        total: selectedHistoryOrder.totalAmount,
+                        paymentMethod: selectedHistoryOrder.paymentMethod,
+                        wifiName: storeInfo.wifiName,
+                        wifiPassword: storeInfo.wifiPassword,
+                        footerMessage: storeInfo.receiptFooter,
+                        items: selectedHistoryOrder.items.map((item: any) => ({
+                          id: item.id,
+                          name: item.productName,
+                          quantity: item.quantity,
+                          price: item.unitPrice,
+                          subTotal: item.subTotal
+                        }))
+                      }}
+                    />
+                    <button
+                      onClick={() => window.print()}
+                      className="w-full max-w-[400px] mt-2 py-3 bg-[#1a1f36] text-white rounded-xl font-bold hover:bg-[#6C4E31] transition-colors shadow-sm flex justify-center items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.11 1.227H7.221c-.636 0-1.12-.556-1.11-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v2.796c0 1.18.91 2.164 2.09 2.201a51.964 51.964 0 006.32 0c1.18-.037 2.09-1.022 2.09-2.201V9.289z" /></svg>
+                      Print Struk
+                    </button>
                   </div>
+
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-gray-300 py-20 text-center">
                     <div className="text-3xl mb-2">👈</div>

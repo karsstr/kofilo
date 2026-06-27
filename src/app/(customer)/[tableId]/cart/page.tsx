@@ -3,10 +3,10 @@
 // =============================================================
 // Page: /{tableId}/cart
 // Halaman keranjang belanja PWA
-// PERUBAHAN: Memperbaiki logic "Gunakan" saat item dihapus
+// PERUBAHAN: Hitungan Tax & Service Charge menjadi dinamis dari Database
 // =============================================================
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/useCartStore';
@@ -22,13 +22,35 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
 
   const [showAuthDrawer, setShowAuthDrawer] = useState(false);
 
+  // 🔥 STATE UNTUK FINANCE & TAXES 🔥
+  const [storeSettings, setStoreSettings] = useState({ 
+    taxRate: 0, serviceCharge: 0 
+  });
+
+  // 🔥 FETCH DATA SETTING DARI API 🔥
+  useEffect(() => {
+    fetch('/api/public/store')
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) {
+          setStoreSettings({
+            taxRate: data.settings.taxRate || 0,
+            serviceCharge: data.settings.serviceCharge || 0,
+          });
+        }
+      })
+      .catch(() => {}); // silent fail, hitungan akan fallback ke 0
+  }, []);
+
+  // 🔥 PERHITUNGAN DINAMIS 🔥
   const subtotal = cart.reduce((acc, item) => {
     if (item.isReward) return acc;
     return acc + item.price * item.quantity;
   }, 0);
   
-  const taxAndService = subtotal * 0.1;
-  const total = subtotal + taxAndService;
+  const taxAmount = Math.round(subtotal * (storeSettings.taxRate / 100));
+  const serviceAmount = Math.round(subtotal * (storeSettings.serviceCharge / 100));
+  const total = subtotal + taxAmount + serviceAmount;
 
   // 🔥 PERBAIKAN LOGIKA: Ekstrak ID asli dengan aman
   const handleRemoveItem = (item: any) => {
@@ -158,9 +180,19 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
             <div className="flex justify-between text-sm text-gray-500">
               <span>Subtotal</span><span>Rp {subtotal.toLocaleString('id-ID')}</span>
             </div>
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Pajak & Layanan (10%)</span><span>Rp {taxAndService.toLocaleString('id-ID')}</span>
-            </div>
+            
+            {/* 🔥 TAMPILKAN PAJAK & LAYANAN JIKA LEBIH DARI 0 🔥 */}
+            {serviceAmount > 0 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Layanan ({storeSettings.serviceCharge}%)</span><span>Rp {serviceAmount.toLocaleString('id-ID')}</span>
+              </div>
+            )}
+            {taxAmount > 0 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Pajak ({storeSettings.taxRate}%)</span><span>Rp {taxAmount.toLocaleString('id-ID')}</span>
+              </div>
+            )}
+            
             <div className="border-t border-dashed border-gray-200 my-1" />
             <div className="flex justify-between items-center">
               <span className="font-extrabold text-base text-gray-900">Total</span>

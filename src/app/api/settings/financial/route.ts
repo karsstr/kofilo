@@ -17,7 +17,7 @@ export async function GET() {
     }
     return NextResponse.json({ settings });
   } catch (error) {
-    console.error("[GET /api/settings/points]", error);
+    console.error("[GET /api/settings/financial]", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -30,10 +30,9 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { loyaltyEnabled, rewardPerAmount, pointsEarned, registrationPoints, pointsExpiryDays } = body; // Tambahkan di sini
+    const { taxRate, serviceCharge, acceptCash, acceptQris, acceptTransfer } = body;
 
     let settings = await prisma.storeSetting.findFirst();
-    
     if (!settings) {
       settings = await prisma.storeSetting.create({ data: { id: "kofilo-store-1" } });
     }
@@ -41,17 +40,18 @@ export async function PUT(req: NextRequest) {
     const updatedSettings = await prisma.storeSetting.update({
       where: { id: settings.id },
       data: {
-        loyaltyEnabled: Boolean(loyaltyEnabled),
-        rewardPerAmount: Number(rewardPerAmount) || 10000,
-        pointsEarned: Number(pointsEarned) || 1,
-        registrationPoints: Number(registrationPoints) || 0,
-        pointsExpiryDays: Number(pointsExpiryDays) || 0, // Tambahkan ini (0 = tidak kadaluarsa)
+        // Simpan nilai menjadi angka pecahan/desimal yang valid
+        taxRate: parseFloat(taxRate) || 0,
+        serviceCharge: parseFloat(serviceCharge) || 0,
+        acceptCash: Boolean(acceptCash),
+        acceptQris: Boolean(acceptQris),
+        acceptTransfer: Boolean(acceptTransfer),
       }
     });
 
-    return NextResponse.json({ message: "Aturan poin berhasil disimpan", settings: updatedSettings });
+    return NextResponse.json({ message: "Pengaturan finance berhasil disimpan", settings: updatedSettings });
   } catch (error) {
-    console.error("[PUT /api/settings/points]", error);
+    console.error("[PUT /api/settings/financial]", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

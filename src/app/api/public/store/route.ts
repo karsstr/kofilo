@@ -5,8 +5,6 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // Ambil data yang aman untuk publik (nama, deskripsi, logo, banner) 
-    // + Ditambah data untuk PWA Landing Page & Struk Universal
     let settings = await prisma.storeSetting.findFirst({
       select: {
         storeName: true,
@@ -18,12 +16,17 @@ export async function GET() {
         pwaWelcomeSubtitle: true,
         pwaFooterText: true,
         receiptFooter: true,
+        wifiName: true,
         wifiPassword: true,
+        taxRate: true,
+        serviceCharge: true,
+        acceptCash: true,
+        acceptQris: true,
+        acceptTransfer: true,
       }
     });
 
     if (!settings) {
-      // Tambahkan nilai default (fallback) jika database masih kosong
       settings = { 
         storeName: "Kofilo Craft Coffee", 
         description: null, 
@@ -34,7 +37,13 @@ export async function GET() {
         pwaWelcomeSubtitle: "TABLE DASHBOARD",
         pwaFooterText: "© 2026 KOFILO. PREMIUM EXPERIENCE.",
         receiptFooter: "Terima kasih atas kunjungannya!",
-        wifiPassword: null
+        wifiName: null,
+        wifiPassword: null,
+        taxRate: 0,
+        serviceCharge: 0,
+        acceptCash: true,
+        acceptQris: true,
+        acceptTransfer: false,
       };
     }
 

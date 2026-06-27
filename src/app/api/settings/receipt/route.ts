@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { receiptFooter, wifiPassword } = body;
+    const { receiptFooter, wifiName, wifiPassword } = body;
 
     let settings = await prisma.storeSetting.findFirst();
     
@@ -42,6 +42,7 @@ export async function PUT(req: NextRequest) {
       where: { id: settings.id },
       data: {
         receiptFooter: receiptFooter || "Terima kasih atas kunjungannya!",
+        wifiName: wifiName || null,
         wifiPassword: wifiPassword || null,
       }
     });

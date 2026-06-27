@@ -10,7 +10,6 @@ export default function FinancialSettingsPage() {
   const [formData, setFormData] = useState({
     taxRate: "0",
     serviceCharge: "0",
-    minOrderAmount: "0",
     acceptCash: true,
     acceptQris: true,
     acceptTransfer: false,
@@ -31,7 +30,6 @@ export default function FinancialSettingsPage() {
             setFormData({
               taxRate: data.settings.taxRate?.toString() || "0",
               serviceCharge: data.settings.serviceCharge?.toString() || "0",
-              minOrderAmount: data.settings.minOrderAmount?.toString() || "0",
               acceptCash: data.settings.acceptCash ?? true,
               acceptQris: data.settings.acceptQris ?? true,
               acceptTransfer: data.settings.acceptTransfer ?? false,
@@ -52,9 +50,8 @@ export default function FinancialSettingsPage() {
     setSubmitting(true);
     try {
       const payload = {
-        taxRate: parseFloat(formData.taxRate),
-        serviceCharge: parseFloat(formData.serviceCharge),
-        minOrderAmount: parseInt(formData.minOrderAmount),
+        taxRate: parseFloat(formData.taxRate) || 0,
+        serviceCharge: parseFloat(formData.serviceCharge) || 0,
         acceptCash: formData.acceptCash,
         acceptQris: formData.acceptQris,
         acceptTransfer: formData.acceptTransfer,

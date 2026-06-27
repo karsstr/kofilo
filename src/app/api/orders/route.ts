@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-// ─── GET: Riwayat order ───────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -20,7 +19,6 @@ export async function GET(req: NextRequest) {
     const limit = Number(searchParams.get("limit") ?? 20);
     const skip = (page - 1) * limit;
 
-    // Kasir hanya lihat order-nya sendiri; Super Admin lihat semua
     const where = session.role === "CASHIER" ? { cashierId: session.id } : {};
 
     const [orders, total] = await Promise.all([
@@ -46,7 +44,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ─── POST: Buat order baru ────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -55,14 +52,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { items, totalAmount, paymentMethod, customerPhone } = body;
+    const { items, paymentMethod, customerPhone } = body;
 
-    // Validasi input
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ message: "Cart tidak boleh kosong" }, { status: 400 });
     }
 
-    // 🔥 PERBAIKAN AMAN 1: Hapus akhiran '-reward' pada pencarian ID agar produk ditemukan
     const productIds = items.map((i: any) => (i.productId || "").replace('-reward', ''));
     const products = await prisma.product.findMany({
       where: { id: { in: productIds }, isAvailable: true },
@@ -75,49 +70,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Hitung ulang total server-side untuk keamanan
     const productMap = new Map(products.map((p) => [p.id, p]));
     
-    // 🔥 PERBAIKAN AMAN 2: Jika item adalah Reward, harganya dipaksa Rp 0
-    const calculatedTotal = items.reduce(
-      (sum: number, item: any) => {
-        const realId = (item.productId || "").replace('-reward', '');
-        const product = productMap.get(realId);
-        
-        // Deteksi apakah ini barang gratis
-        const isReward = item.isReward === true || (item.productId || "").includes('-reward') || item.price === 0;
-        const priceToUse = isReward ? 0 : (product?.price ?? 0);
+    // Hitung Subtotal Murni
+    const subTotalAmount = items.reduce((sum: number, item: any) => {
+      const realId = (item.productId || "").replace('-reward', '');
+      const product = productMap.get(realId);
+      const isReward = item.isReward === true || (item.productId || "").includes('-reward') || item.price === 0;
+      const priceToUse = isReward ? 0 : (product?.price ?? 0);
+      return sum + priceToUse * item.quantity;
+    }, 0);
 
-        return sum + priceToUse * item.quantity;
-      },
-      0
-    );
-
-    // Tangkap waktu saat ini untuk disimpan sebagai "Last Transaction"
     const now = new Date();
 
-    // Buat order beserta semua order items dan update poin customer dalam satu transaksi
     const order = await prisma.$transaction(async (tx) => {
+      // Ambil konfigurasi toko (Tax & Service)
+      const storeSetting = await tx.storeSetting.findUnique({
+        where: { id: "kofilo-store-1" },
+      });
+
+      // 🔥 HITUNG TAX & SERVICE DINAMIS 🔥
+      const taxRate = storeSetting?.taxRate ?? 0;
+      const serviceCharge = storeSetting?.serviceCharge ?? 0;
+      const taxAmount = Math.round(subTotalAmount * (taxRate / 100));
+      const serviceAmount = Math.round(subTotalAmount * (serviceCharge / 100));
+      const calculatedTotal = subTotalAmount + taxAmount + serviceAmount;
+
       if (customerPhone && typeof customerPhone === "string") {
-        // 1. Bersihkan dari karakter aneh
         let cleanPhone = customerPhone.replace(/\D/g, "");
-        
-        // 2. FORMAT PREFIX OTOMATIS: Pastikan selalu diawali "62" walau kasir cuma ngetik "8..."
-        if (cleanPhone.startsWith("0")) {
-          cleanPhone = "62" + cleanPhone.slice(1);
-        } else if (cleanPhone.startsWith("8")) {
-          cleanPhone = "62" + cleanPhone;
-        }
+        if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
+        else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
 
         if (cleanPhone.length >= 10 && cleanPhone.length <= 14) {
-          // Ambil konfigurasi poin dari StoreSetting (sumber kebenaran tunggal)
-          const storeSetting = await tx.storeSetting.findUnique({
-            where: { id: "kofilo-store-1" },
-          });
-          
-          // 🔥 PERBAIKAN: Hitung Point DINAMIS dari database 🔥
           const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
-          // Pastikan pembagi minimal 1 agar tidak error infinity/NaN
           const rewardPerAmount = Math.max(storeSetting?.rewardPerAmount ?? 10000, 1);
           const pointsEarnedSetting = storeSetting?.pointsEarned ?? 1;
           
@@ -131,21 +116,16 @@ export async function POST(req: NextRequest) {
           });
 
           if (existingCustomer) {
-            // JIKA CUSTOMER SUDAH ADA: Update poin DAN update waktu transaksi (updatedAt)
             await tx.customer.update({
               where: { id: existingCustomer.id },
-              data: { 
-                points: existingCustomer.points + earnedPoints,
-                updatedAt: now 
-              },
+              data: { points: existingCustomer.points + earnedPoints, updatedAt: now },
             });
           } else {
-            // JIKA CUSTOMER BARU: Berikan bonus daftar (jika ada) + poin belanja
             const registrationBonus = storeSetting?.registrationPoints ?? 0;
             await tx.customer.create({
               data: {
                 phone: cleanPhone,
-                name: "-", // NAMA DIBUAT KOSONG (Strip)
+                name: "-",
                 points: earnedPoints + registrationBonus,
                 createdAt: now,
                 updatedAt: now,
@@ -164,17 +144,14 @@ export async function POST(req: NextRequest) {
           createdAt: now,
           orderItems: {
             create: items.map((item: any) => {
-              // 🔥 PERBAIKAN AMAN 3: Jangan timpa harga Rp 0 saat menyimpan ke database POS
               const realId = (item.productId || "").replace('-reward', '');
               const product = productMap.get(realId);
-              
               const isReward = item.isReward === true || (item.productId || "").includes('-reward') || item.price === 0;
               const priceToUse = isReward ? 0 : (product?.price ?? 0);
-
               return {
                 productId: realId,
                 quantity: item.quantity,
-                subTotal: priceToUse * item.quantity,
+                subTotal: priceToUse * item.quantity, // Hanya simpan Subtotal murni tanpa pajak
               };
             }),
           },
