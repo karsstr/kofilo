@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
         variants?: string;
         isReward?: boolean;
       }>;
-      totalAmount?: number; // Menangkap totalAmount dari PWA
     };
 
     if (!tableId || typeof tableId !== "string") return NextResponse.json({ message: "tableId wajib diisi" }, { status: 400 });
@@ -86,6 +85,7 @@ export async function POST(req: NextRequest) {
       dbRewards.forEach(r => productPriceMap.set(r.id, 0)); 
     }
 
+    // 🔥 AMBIL SETTING DARI SUPERADMIN (DATABASE) 🔥
     const storeSetting = await prisma.storeSetting.findUnique({
       where: { id: "kofilo-store-1" },
     });
@@ -99,21 +99,16 @@ export async function POST(req: NextRequest) {
       
       const dbPrice = productPriceMap.get(realId) ?? 0;
       
-      // Mengambil harga dari frontend (yang wajar), lalu langsung dikalikan 1.10 agar nilainya sama dengan Kasir
+      // Mengambil harga dari frontend (yang wajar)
       const basePrice = isRewardItem ? 0 : (item.price >= dbPrice ? item.price : dbPrice);
-      
-      // 🔥 PERBAIKAN: Suntikkan pajak 10% ke harga satuan 🔥
-      const finalPriceWithTax = isRewardItem ? 0 : Math.round(basePrice * 1.10);
-      
-      // Subtotal per baris
-      const subTotal = finalPriceWithTax * item.quantity;
+      const subTotal = basePrice * item.quantity;
       
       subTotalAmount += subTotal;
 
       return {
         productId: realId, 
         name: item.name + (isRewardItem && !item.name.includes('Reward') ? " (Reward)" : ""), 
-        price: finalPriceWithTax, // Harga yang sudah dipajak (misal: 16.500) tersimpan di sini
+        price: basePrice, // Menyimpan harga asli murni (misal 32.000)
         quantity: item.quantity,
         variants: item.variants ?? null,
         subTotal: subTotal,
@@ -121,13 +116,19 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Mengambil totalAmount dari Frontend jika ada
-    const finalTotalAmount = body.totalAmount ?? Math.round(subTotalAmount);
+    // 🔥 HITUNG PAJAK & TOTAL MUTLAK DARI SISI SERVER (SUPERADMIN) 🔥
+    const taxRate = storeSetting?.taxRate ?? 0;
+    const serviceCharge = storeSetting?.serviceCharge ?? 0;
+    
+    const taxAmount = Math.round(subTotalAmount * (taxRate / 100));
+    const serviceAmount = Math.round(subTotalAmount * (serviceCharge / 100));
+    
+    // Total Akhir = Subtotal + Pajak + Layanan
+    const finalTotalAmount = subTotalAmount + taxAmount + serviceAmount;
 
     // --- Loyalty: Hitung & tambah poin ---
     try {
       const loyaltyEnabled = storeSetting?.loyaltyEnabled ?? true;
-      // 🔥 PERBAIKAN: Mengambil data dinamis dan proteksi devide-by-zero
       const rewardPerAmount = Math.max(storeSetting?.rewardPerAmount ?? 10000, 1);
       const pointsEarnedSetting = storeSetting?.pointsEarned ?? 1;
 
@@ -135,7 +136,6 @@ export async function POST(req: NextRequest) {
         // Hitung poin dari total belanja akhir
         const earnedPoints = Math.floor(finalTotalAmount / rewardPerAmount) * pointsEarnedSetting;
         
-        // Tetap jalankan update meskipun poin 0 (misalnya hanya pakai poin untuk redeem, tujuannya untuk update Last Transaction)
         let cleanPhone = customerPayload.phone.replace(/\D/g, "");
         if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
         else if (cleanPhone.startsWith("8")) cleanPhone = "62" + cleanPhone;
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
             create: {
               phone: cleanPhone,
               name: customerPayload.name || "-",
-              points: earnedPoints + registrationBonus, // Menambahkan bonus daftar
+              points: earnedPoints + registrationBonus,
               createdAt: now,
               updatedAt: now,
             }
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
         data: {
           tableId,
           customerId: customerPayload.sub,
-          totalAmount: finalTotalAmount, 
+          totalAmount: finalTotalAmount, // Menggunakan total hitungan Server
           status: "PENDING_CONFIRMATION",
           paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
           items: itemsSnapshot, 
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
         data: {
           tableId,
           customerId: undefined,
-          totalAmount: finalTotalAmount, 
+          totalAmount: finalTotalAmount, // Menggunakan total hitungan Server
           status: "PENDING_CONFIRMATION",
           paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
           items: itemsSnapshot,

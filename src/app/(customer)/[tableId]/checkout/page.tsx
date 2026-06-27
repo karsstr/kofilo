@@ -362,43 +362,51 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
         {!qrString && (
           <div>
             <h3 className="font-bold text-sm text-gray-500 uppercase tracking-wider mb-3">Select Payment Method</h3>
-            <div className="grid grid-cols-2 gap-3">
-              
-              {/* 🔥 SEMBUNYIKAN JIKA DI-DISABLE DI ADMIN 🔥 */}
-              {storeSettings.acceptCash && (
-                <button 
-                  onClick={() => { setPaymentMethod('CASH'); setQrString(null); setPaymentId(null); }}
-                  className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
-                    paymentMethod === 'CASH' 
-                    ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
-                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.242c0-.754-.727-1.294-1.453-1.096a60.07 60.07 0 01-15.797 2.101c-.727.198-1.453.342-1.453 1.096V18.75z" />
-                  </svg>
-                  <span className="font-bold text-sm">Pay at Cashier</span>
-                </button>
-              )}
+            
+            {/* 🔥 PROTEKSI: JIKA SEMUA METODE PEMBAYARAN DIMATIKAN ADMIN 🔥 */}
+            {!storeSettings.acceptCash && !storeSettings.acceptQris ? (
+              <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-red-200 rounded-2xl bg-red-50/50 text-red-500 animate-in fade-in duration-300">
+                <span className="text-4xl mb-3">⚠️</span>
+                <h3 className="font-extrabold text-[#1a1f36] text-lg mb-1 text-center">Metode Pembayaran Tidak Tersedia</h3>
+                <p className="text-sm font-medium text-red-400 text-center">Semua metode pembayaran sedang dinonaktifkan.<br/>Harap hubungi Admin.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {/* 🔥 SEMBUNYIKAN JIKA DI-DISABLE DI ADMIN 🔥 */}
+                {storeSettings.acceptCash && (
+                  <button 
+                    onClick={() => { setPaymentMethod('CASH'); setQrString(null); setPaymentId(null); }}
+                    className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                      paymentMethod === 'CASH' 
+                      ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.242c0-.754-.727-1.294-1.453-1.096a60.07 60.07 0 01-15.797 2.101c-.727.198-1.453.342-1.453 1.096V18.75z" />
+                    </svg>
+                    <span className="font-bold text-sm">Pay at Cashier</span>
+                  </button>
+                )}
 
-              {storeSettings.acceptQris && (
-                <button 
-                  onClick={() => { setPaymentMethod('QRIS'); setQrString(null); setPaymentId(null); }}
-                  className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
-                    paymentMethod === 'QRIS' 
-                    ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
-                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
-                  </svg>
-                  <span className="font-bold text-sm">QRIS / E-Wallet</span>
-                </button>
-              )}
-
-            </div>
+                {storeSettings.acceptQris && (
+                  <button 
+                    onClick={() => { setPaymentMethod('QRIS'); setQrString(null); setPaymentId(null); }}
+                    className={`py-5 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                      paymentMethod === 'QRIS' 
+                      ? 'border-[#7a5c43] bg-[#7a5c43]/5 text-[#7a5c43]' 
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                    </svg>
+                    <span className="font-bold text-sm">QRIS / E-Wallet</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -426,9 +434,9 @@ export default function CustomerCheckoutPage({ params }: { params: Promise<{ tab
           ) : (
             <button 
               onClick={handleConfirmPayment}
-              disabled={!paymentMethod || isProcessing}
+              disabled={!paymentMethod || isProcessing || (!storeSettings.acceptCash && !storeSettings.acceptQris)}
               className={`w-full py-4 rounded-xl font-bold text-[15px] transition-all flex justify-center items-center gap-2 ${
-                isProcessing ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
+                isProcessing || (!storeSettings.acceptCash && !storeSettings.acceptQris) ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' :
                 paymentMethod 
                   ? 'bg-[#7a5c43] text-white shadow-md hover:bg-[#634832] active:scale-95' 
                   : 'bg-[#e8e2d9] text-white cursor-not-allowed'

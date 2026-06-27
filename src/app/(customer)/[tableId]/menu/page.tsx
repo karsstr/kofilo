@@ -26,6 +26,7 @@ interface MenuCategory {
 
 export default function CustomerMenuPage({ params }: { params: Promise<{ tableId: string }> }) {
   const { tableId } = use(params);
+  const [showMenu, setShowMenu] = useState(false);
   const router = useRouter(); 
   
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -276,8 +277,39 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             {storeInfo.name}<span className="w-2 h-2 rounded-full bg-[#A67B5B] inline-block mb-1"></span>
           </h1>
         </div>
-        <div className="bg-white border border-gray-200 px-4 py-2.5 rounded-full shadow-sm">
-          <p className="text-[11px] font-black text-[#A67B5B] uppercase tracking-[0.15em]">Table {tableId}</p>
+        
+        {/* 🔥 INI BAGIAN KANAN YANG DIGANTI JADI TITIK 3 (DROPDOWN) 🔥 */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowMenu(!showMenu)} 
+            className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-[#1C1917] hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            {/* Icon 3-titik */}
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+            </svg>
+          </button>
+
+          {showMenu && (
+            <>
+              {/* Overlay transparan untuk menutup dropdown jika layar diklik sembarang */}
+              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)}></div>
+              
+              {/* Box Menu Dropdown */}
+              <div className="absolute right-0 top-12 w-48 bg-white border border-gray-100 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-50 py-2 animate-in fade-in zoom-in-[0.95] duration-200">
+                <Link 
+                  href={`/${tableId}/history`} 
+                  onClick={() => setShowMenu(false)}
+                  className="flex items-center gap-3 w-full text-left px-5 py-3 text-[13px] font-extrabold text-gray-700 hover:bg-gray-50 hover:text-[#A67B5B] transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  History Transaksi
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </header>
 

@@ -107,7 +107,7 @@ export default function ReceiptTicket({ data }: { data: ReceiptData }) {
         </div>
 
         {data.wifiPassword && (
-          <div className="border-t border-dashed border-gray-300 pt-5 pb-1">
+          <div className="border-t border-dashed border-gray-300 pt-3 pb-3">
             <div className="flex flex-col items-center justify-center text-[11px] bg-gray-100/50 py-2.5 rounded-lg border border-gray-200 leading-tight gap-1">
               <div><span className="font-bold">Wi-Fi:</span> {data.wifiName || "Guest_WiFi"}</div>
               <div className="font-bold text-[#6C4E31]">Pass: {data.wifiPassword}</div>

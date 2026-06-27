@@ -570,6 +570,22 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                         <span className="text-gray-500">Rp {item.subTotal.toLocaleString('id-ID')}</span>
                       </div>
                     ))}
+                    
+                    {/* 🔥 TAMBAHAN: Munculkan Rincian Pajak & Layanan agar tidak bingung 🔥 */}
+                    {(() => {
+                      const itemsSubtotal = (order.items as PwaOrderItem[]).reduce((sum, item) => sum + item.subTotal, 0);
+                      const extraFee = order.totalAmount - itemsSubtotal;
+                      
+                      if (extraFee > 0) {
+                        return (
+                          <div className="flex justify-between text-[11px] text-gray-400 border-t border-dashed border-gray-200 pt-1.5 mt-0.5">
+                            <span className="font-bold">Pajak & Layanan</span>
+                            <span className="font-bold">+ Rp {extraFee.toLocaleString('id-ID')}</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   <div className="flex gap-2">
@@ -907,6 +923,7 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
           <div className="bg-white rounded-[32px] w-full max-w-4xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-[0.96] duration-300 ease-out max-h-[90vh]">
             
             {/* KIRI: METODE PEMBAYARAN */}
+{/* KIRI: METODE PEMBAYARAN */}
             <div className="flex-1 p-10 flex flex-col overflow-y-auto">
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-3xl font-black text-[#1a1f36] tracking-tight">Payment</h2>
@@ -915,64 +932,80 @@ export default function CashierClient({ cashierName }: { cashierName: string }) 
                 </button>
               </div>
 
-              <div className="flex gap-4 mb-8">
-                {/* 🔥 SEMBUNYIKAN JIKA DI-DISABLE DI ADMIN 🔥 */}
-                {storeInfo.acceptCash && (
-                  <button 
-                    onClick={() => setPaymentMethod('CASH')}
-                    className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'CASH' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.22a.75.75 0 00-.75-.75h-13.5a.75.75 0 00-.75.75v14.53zM15.75 18.75v-1.5a.75.75 0 00-1.5 0v1.5m-3-1.5v1.5m-3-1.5v1.5m10.5-12.75h-10.5M10.5 9h-3m3 3h-3m3 3h-3m3 0v1.5" /></svg>
-                    CASH
-                  </button>
-                )}
-                {storeInfo.acceptQris && (
-                  <button 
-                    onClick={() => setPaymentMethod('QRIS')}
-                    className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'QRIS' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5h.008v.008h-.008v-.008zM16.5 19.5h.008v.008h-.008v-.008zM19.5 16.5h.008v.008h-.008v-.008zM19.5 19.5h.008v.008h-.008v-.008zM16.5 13.5h.008v.008h-.008v-.008zM13.5 16.5h.008v.008h-.008v-.008zM13.5 19.5h.008v.008h-.008v-.008zM19.5 13.5h.008v.008h-.008v-.008z" /></svg>
-                    QRIS / E-Wallet
-                  </button>
-                )}
-              </div>
-
-              {paymentMethod === 'CASH' && (
-                <div className="mb-auto animate-in fade-in duration-300">
-                  <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider mb-4">Quick Cash</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={() => setCashAmount('EXACT')}
-                      className={`py-4 rounded-2xl border-2 text-[14px] font-bold transition-all ${cashAmount === 'EXACT' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}
-                    >
-                      Exact Amount
-                    </button>
-                    {[50000, 100000, 150000, 200000].map((amount) => (
+              {/* 🔥 PROTEKSI: JIKA SEMUA METODE PEMBAYARAN DIMATIKAN ADMIN 🔥 */}
+              {!storeInfo.acceptCash && !storeInfo.acceptQris ? (
+                <div className="mb-auto flex flex-col items-center justify-center p-10 border-2 border-dashed border-red-200 rounded-3xl bg-red-50/50 text-red-500 animate-in fade-in duration-300">
+                  <span className="text-4xl mb-3">⚠️</span>
+                  <h3 className="font-extrabold text-[#1a1f36] text-lg mb-1 text-center">Metode Pembayaran Tidak Tersedia</h3>
+                  <p className="text-sm font-medium text-red-400 text-center">Semua metode pembayaran sedang dinonaktifkan.<br/>Harap hubungi Admin.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-4 mb-8">
+                    {/* 🔥 SEMBUNYIKAN JIKA DI-DISABLE DI ADMIN 🔥 */}
+                    {storeInfo.acceptCash && (
                       <button 
-                        key={amount}
-                        onClick={() => setCashAmount(amount)}
-                        className={`py-4 rounded-2xl border-2 text-[14px] font-bold transition-all ${cashAmount === amount ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}
+                        onClick={() => setPaymentMethod('CASH')}
+                        className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'CASH' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
                       >
-                        Rp {amount.toLocaleString('id-ID')}
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V4.22a.75.75 0 00-.75-.75h-13.5a.75.75 0 00-.75.75v14.53zM15.75 18.75v-1.5a.75.75 0 00-1.5 0v1.5m-3-1.5v1.5m-3-1.5v1.5m10.5-12.75h-10.5M10.5 9h-3m3 3h-3m3 3h-3m3 0v1.5" /></svg>
+                        CASH
                       </button>
-                    ))}
+                    )}
+                    {storeInfo.acceptQris && (
+                      <button 
+                        onClick={() => setPaymentMethod('QRIS')}
+                        className={`flex-1 py-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 font-extrabold transition-all ${paymentMethod === 'QRIS' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5 ring-4 ring-[#6C4E31]/10' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5h.008v.008h-.008v-.008zM16.5 19.5h.008v.008h-.008v-.008zM19.5 16.5h.008v.008h-.008v-.008zM19.5 19.5h.008v.008h-.008v-.008zM16.5 13.5h.008v.008h-.008v-.008zM13.5 16.5h.008v.008h-.008v-.008zM13.5 19.5h.008v.008h-.008v-.008zM19.5 13.5h.008v.008h-.008v-.008z" /></svg>
+                        QRIS / E-Wallet
+                      </button>
+                    )}
                   </div>
-                </div>
-              )}
 
-              {paymentMethod === 'QRIS' && (
-                <div className="mb-auto flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50 animate-in fade-in duration-300">
-                  <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-5">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-[#6C4E31]"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5h.008v.008h-.008v-.008zM16.5 19.5h.008v.008h-.008v-.008zM19.5 16.5h.008v.008h-.008v-.008zM19.5 19.5h.008v.008h-.008v-.008zM16.5 13.5h.008v.008h-.008v-.008zM13.5 16.5h.008v.008h-.008v-.008zM13.5 19.5h.008v.008h-.008v-.008zM19.5 13.5h.008v.008h-.008v-.008z" /></svg>
-                  </div>
-                  <h3 className="font-extrabold text-[#1a1f36] text-lg mb-1">Awaiting Payment</h3>
-                  <p className="text-sm font-medium text-gray-500 text-center">Please scan the QR code displayed on<br/>the EDC machine to complete.</p>
-                </div>
+                  {paymentMethod === 'CASH' && storeInfo.acceptCash && (
+                    <div className="mb-auto animate-in fade-in duration-300">
+                      <h3 className="font-bold text-[13px] text-gray-400 uppercase tracking-wider mb-4">Quick Cash</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => setCashAmount('EXACT')}
+                          className={`py-4 rounded-2xl border-2 text-[14px] font-bold transition-all ${cashAmount === 'EXACT' ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          Exact Amount
+                        </button>
+                        {[50000, 100000, 150000, 200000].map((amount) => (
+                          <button 
+                            key={amount}
+                            onClick={() => setCashAmount(amount)}
+                            className={`py-4 rounded-2xl border-2 text-[14px] font-bold transition-all ${cashAmount === amount ? 'border-[#6C4E31] text-[#6C4E31] bg-[#6C4E31]/5' : 'border-gray-100 text-gray-500 hover:border-gray-200 hover:bg-gray-50'}`}
+                          >
+                            Rp {amount.toLocaleString('id-ID')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'QRIS' && storeInfo.acceptQris && (
+                    <div className="mb-auto flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50 animate-in fade-in duration-300">
+                      <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-[#6C4E31]"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5h.008v.008h-.008v-.008zM16.5 19.5h.008v.008h-.008v-.008zM19.5 16.5h.008v.008h-.008v-.008zM19.5 19.5h.008v.008h-.008v-.008zM16.5 13.5h.008v.008h-.008v-.008zM13.5 16.5h.008v.008h-.008v-.008zM13.5 19.5h.008v.008h-.008v-.008zM19.5 13.5h.008v.008h-.008v-.008z" /></svg>
+                      </div>
+                      <h3 className="font-extrabold text-[#1a1f36] text-lg mb-1">Awaiting Payment</h3>
+                      <p className="text-sm font-medium text-gray-500 text-center">Please scan the QR code displayed on<br/>the EDC machine to complete.</p>
+                    </div>
+                  )}
+                </>
               )}
 
               <button 
                 onClick={confirmPayment}
-                className="mt-8 w-full bg-[#6C4E31] text-white py-5 rounded-2xl font-black text-[16px] shadow-[0_8px_25px_-8px_rgba(108,78,49,0.5)] hover:bg-[#583f27] hover:-translate-y-0.5 active:scale-[0.98] transition-all"
+                disabled={!storeInfo.acceptCash && !storeInfo.acceptQris}
+                className={`mt-8 w-full py-5 rounded-2xl font-black text-[16px] transition-all ${
+                  (!storeInfo.acceptCash && !storeInfo.acceptQris) 
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' 
+                  : 'bg-[#6C4E31] text-white shadow-[0_8px_25px_-8px_rgba(108,78,49,0.5)] hover:bg-[#583f27] hover:-translate-y-0.5 active:scale-[0.98]'
+                }`}
               >
                 Confirm Payment - Rp {total.toLocaleString('id-ID')}
               </button>
