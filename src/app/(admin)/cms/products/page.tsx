@@ -97,7 +97,7 @@ export default function ProductsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [sku, setSku] = useState("");
+  const [sku, setSku] = useState(""); // auto-generated (readonly display)
   const [categoryId, setCategoryId] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
   const [image, setImage] = useState("");
@@ -612,9 +612,11 @@ export default function ProductsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">SKU / Code</label>
-                  <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="COF-001"
-                    className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300" />
+                  <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">SKU / Code <span className="text-gray-300 lowercase font-medium tracking-normal">(Otomatis)</span></label>
+                  <div className="w-full bg-gray-100 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400"><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /></svg>
+                    <span className="text-gray-500">{sku || <span className="text-gray-300 italic">Auto-generated</span>}</span>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Price (Rp)</label>

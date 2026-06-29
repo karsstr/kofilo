@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
       role: user.role,
     };
 
-    // Serialize session (TODO: ganti dengan JWT signing)
-    const sessionValue = serializeSession(sessionUser);
+    // Serialize session — JWT signed
+    const sessionValue = await serializeSession(sessionUser);
 
     // Set response dengan cookie session
     const response = NextResponse.json({
@@ -56,13 +56,13 @@ export async function POST(req: NextRequest) {
       user: sessionUser,
     });
 
-    // Set cookie with proper headers
+    // Set cookie with security headers
     response.cookies.set({
       name: "pos_session",
       value: sessionValue,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "strict",
       maxAge: 60 * 60 * 8,
       path: "/",
     });

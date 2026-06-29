@@ -39,6 +39,16 @@ export async function POST(req: NextRequest) {
     if (!tableId || typeof tableId !== "string") return NextResponse.json({ message: "tableId wajib diisi" }, { status: 400 });
     if (!items || !Array.isArray(items) || items.length === 0) return NextResponse.json({ message: "Keranjang kosong" }, { status: 400 });
 
+    // 🔒 Validasi ketat tiap item
+    for (const item of items) {
+      if (typeof item.quantity !== "number" || item.quantity <= 0) {
+        return NextResponse.json({ message: `Quantity untuk ${item.name || "item"} tidak valid` }, { status: 400 });
+      }
+      if (typeof item.price !== "number" || item.price < 0) {
+        return NextResponse.json({ message: `Harga untuk ${item.name || "item"} tidak valid` }, { status: 400 });
+      }
+    }
+
     const normalIds: string[] = [];
     const rewardIds: string[] = [];
 
@@ -161,31 +171,22 @@ export async function POST(req: NextRequest) {
       console.warn("[loyalty] Gagal update poin:", loyaltyErr);
     }
 
-    // --- Buat PwaOrder ---
-    let pwaOrder;
-    try {
-      pwaOrder = await prisma.pwaOrder.create({
-        data: {
-          tableId,
-          customerId: customerPayload.sub,
-          totalAmount: finalTotalAmount, // Menggunakan total hitungan Server
-          status: "PENDING_CONFIRMATION",
-          paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
-          items: itemsSnapshot, 
-        },
-      });
-    } catch (createErr) {
-      pwaOrder = await prisma.pwaOrder.create({
-        data: {
-          tableId,
-          customerId: undefined,
-          totalAmount: finalTotalAmount, // Menggunakan total hitungan Server
-          status: "PENDING_CONFIRMATION",
-          paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
-          items: itemsSnapshot,
-        },
-      });
+    // 🔒 Validasi customerId sebelum create
+    if (!customerPayload.sub) {
+      return NextResponse.json({ message: "Customer tidak valid" }, { status: 400 });
     }
+
+    // --- Buat PwaOrder ---
+    const pwaOrder = await prisma.pwaOrder.create({
+      data: {
+        tableId,
+        customerId: customerPayload.sub,
+        totalAmount: finalTotalAmount, // Menggunakan total hitungan Server
+        status: "PENDING_CONFIRMATION",
+        paymentMethod: paymentMethod === "QRIS" || paymentMethod === "CASH" || paymentMethod === "TRANSFER" ? paymentMethod : "CASH",
+        items: itemsSnapshot, 
+      },
+    });
 
     return NextResponse.json(
       {

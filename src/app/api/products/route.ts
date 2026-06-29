@@ -1,6 +1,7 @@
 // =============================================================
 // API Products — /api/products/route.ts
 // GET: List produk | POST: Tambah | PUT: Edit | DELETE: Hapus
+// SKU di-generate otomatis dari nama kategori (tidak manual)
 // =============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -8,6 +9,44 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
+
+// ─── Helper: Generate SKU dari Kategori ─────────────────────
+async function generateSku(categoryId: string): Promise<string> {
+  // Ambil nama kategori
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { name: true },
+  });
+
+  if (!category) throw new Error("Kategori tidak ditemukan");
+
+  // Buat prefix: ambil 3 huruf pertama dari kategori (uppercase)
+  const prefix = category.name
+    .replace(/[^a-zA-Z0-9]/g, "") // hapus spasi/simbol
+    .substring(0, 3)
+    .toUpperCase();
+
+  if (!prefix) throw new Error("Nama kategori tidak valid untuk generate SKU");
+
+  // Cari produk terakhir dengan prefix tersebut untuk increment
+  const lastProduct = await prisma.product.findFirst({
+    where: { sku: { startsWith: prefix } },
+    orderBy: { sku: "desc" },
+    select: { sku: true },
+  });
+
+  let nextNumber = 1;
+  if (lastProduct?.sku) {
+    // Ambil angka dari akhir SKU (support format COF001 atau COF-001)
+    const match = lastProduct.sku.match(/(\d+)$/);
+    if (match) {
+      const lastNumber = parseInt(match[1], 10);
+      if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+    }
+  }
+
+  return `${prefix}-${String(nextNumber).padStart(3, "0")}`;
+}
 
 // ─── GET: Semua produk beserta jumlah terjual ─────────────────
 export async function GET(req: NextRequest) {
@@ -99,7 +138,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, price, sku, image, isAvailable, categoryId } = body;
+    const { name, price, image, isAvailable, categoryId } = body;
 
     if (!name || !price || !categoryId) {
       return NextResponse.json(
@@ -108,11 +147,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 🔥 Auto-generate SKU berdasarkan kategori
+    const sku = await generateSku(categoryId);
+
     const product = await prisma.product.create({
       data: {
         name,
         price: Number(price),
-        sku: sku || null,
+        sku,
         image: image || null,
         isAvailable: isAvailable ?? true,
         categoryId,
@@ -127,7 +169,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ─── PUT: Edit produk / Toggle Availability (SUPER_ADMIN only) 
+// ─── PUT: Edit produk (SUPER_ADMIN only) — SKU tetap, tidak bisa diubah manual
 export async function PUT(req: NextRequest) {
   const session = await getSession();
   if (!session || session.role !== "SUPER_ADMIN") {
@@ -141,16 +183,33 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     
+    // 🔥 Jika kategori berubah, generate ulang SKU
+    let updateData: any = {
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.price !== undefined && { price: Number(body.price) }),
+      ...(body.image !== undefined && { image: body.image || null }),
+      ...(body.isAvailable !== undefined && { isAvailable: body.isAvailable }),
+    };
+
+    if (body.categoryId !== undefined) {
+      // Cek apakah kategori benar-benar berubah
+      const existingProduct = await prisma.product.findUnique({
+        where: { id },
+        select: { categoryId: true, sku: true },
+      });
+
+      if (existingProduct && existingProduct.categoryId !== body.categoryId) {
+        // Generate SKU baru jika pindah kategori
+        updateData.categoryId = body.categoryId;
+        updateData.sku = await generateSku(body.categoryId);
+      } else {
+        updateData.categoryId = body.categoryId;
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
-      data: {
-        ...(body.name !== undefined && { name: body.name }),
-        ...(body.price !== undefined && { price: Number(body.price) }),
-        ...(body.sku !== undefined && { sku: body.sku || null }),
-        ...(body.image !== undefined && { image: body.image || null }),
-        ...(body.isAvailable !== undefined && { isAvailable: body.isAvailable }),
-        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
-      },
+      data: updateData,
       include: { category: true },
     });
 

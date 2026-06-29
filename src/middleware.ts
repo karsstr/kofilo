@@ -1,10 +1,12 @@
 // =============================================================
 // Middleware -- RBAC (Role-Based Access Control)
 // File ini dijalankan SEBELUM setiap request masuk ke halaman/API
+// Menggunakan JWT verify untuk memvalidasi session cookie
 // =============================================================
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
 // --- Route Configuration ---
 
@@ -31,9 +33,25 @@ const PUBLIC_ROUTES = [
   "/api/public"
 ];
 
+// --- JWT Verify Helper ---
+
+function getSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET || "kofilo-pwa-jwt-secret-2026-randomsalt-change-in-production";
+  return new TextEncoder().encode(secret);
+}
+
+async function verifySessionCookie(cookieValue: string): Promise<{ role: string } | null> {
+  try {
+    const { payload } = await jwtVerify(cookieValue, getSecret());
+    return { role: payload.role as string };
+  } catch {
+    return null;
+  }
+}
+
 // --- Middleware Function ---
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Lewati semua route API PWA publik
@@ -61,16 +79,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Parse session — cookie format: JSON string
-  let session: { role: string } | null = null;
-  try {
-    session = JSON.parse(sessionCookie);
-  } catch (e) {
-    console.error("Middleware Session Parse Error:", e);
+  // Verify JWT session — jika tamper/expired, redirect ke login
+  const session = await verifySessionCookie(sessionCookie);
+  if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const role = session?.role;
+  const role = session.role;
 
   // 🔥 Guard Admin Routes (Untuk Super Admin & Manager) 🔥
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));

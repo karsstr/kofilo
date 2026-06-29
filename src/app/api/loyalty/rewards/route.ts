@@ -1,6 +1,7 @@
 // =============================================================
 // API Reward Products — /api/loyalty/rewards/route.ts
 // CRUD Menu Penukaran Poin Loyalty
+// Code di-generate otomatis dengan format RWD-001
 // =============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -8,6 +9,28 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
+
+// ─── Helper: Generate Code Reward ──────────────────────────
+const REWARD_PREFIX = "RWD";
+
+async function generateCode(): Promise<string> {
+  const lastReward = await prisma.rewardProduct.findFirst({
+    where: { code: { startsWith: REWARD_PREFIX } },
+    orderBy: { code: "desc" },
+    select: { code: true },
+  });
+
+  let nextNumber = 1;
+  if (lastReward?.code) {
+    const match = lastReward.code.match(/(\d+)$/);
+    if (match) {
+      const lastNumber = parseInt(match[1], 10);
+      if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+    }
+  }
+
+  return `${REWARD_PREFIX}-${String(nextNumber).padStart(3, "0")}`;
+}
 
 // ─── GET: Ambil semua reward products ────────────────────────
 export async function GET(req: NextRequest) {
@@ -45,23 +68,19 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
+    const { name, pointCost, qtyExchange } = body;
     
-    // PERBAIKAN 1: Tambahkan qtyExchange agar ditangkap dari request body
-    const { name, code, pointCost, qtyExchange } = body;
-    
-    if (!name || !code || pointCost === undefined) {
-      return NextResponse.json({ message: "Nama, kode, dan point cost wajib diisi" }, { status: 400 });
-    }
-    const existing = await prisma.rewardProduct.findUnique({ where: { code } });
-    if (existing) {
-      return NextResponse.json({ message: "Kode menu sudah digunakan" }, { status: 400 });
+    if (!name || pointCost === undefined) {
+      return NextResponse.json({ message: "Nama dan point cost wajib diisi" }, { status: 400 });
     }
     
-    // PERBAIKAN 2: Simpan qtyExchange ke database (default ke 1 jika kosong/0)
+    // 🔥 Auto-generate code RWD-001 format
+    const code = await generateCode();
+    
     const reward = await prisma.rewardProduct.create({
       data: { 
         name, 
-        code, 
+        code,
         pointCost: Number(pointCost), 
         qtyExchange: qtyExchange ? Number(qtyExchange) : 1 
       },
@@ -87,16 +106,12 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const existing = await prisma.rewardProduct.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ message: "Reward tidak ditemukan" }, { status: 404 });
-    // Cek duplikasi kode jika berubah
-    if (body.code && body.code !== existing.code) {
-      const dup = await prisma.rewardProduct.findUnique({ where: { code: body.code } });
-      if (dup) return NextResponse.json({ message: "Kode menu sudah digunakan" }, { status: 400 });
-    }
+    
     const reward = await prisma.rewardProduct.update({
       where: { id },
       data: {
         ...(body.name !== undefined && { name: body.name }),
-        ...(body.code !== undefined && { code: body.code }),
+        // Code tetap tidak berubah saat edit
         ...(body.pointCost !== undefined && { pointCost: Number(body.pointCost) }),
         ...(body.qtyExchange !== undefined && { qtyExchange: Number(body.qtyExchange) }),
       },
