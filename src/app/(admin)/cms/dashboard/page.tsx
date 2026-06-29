@@ -47,7 +47,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   });
 
   allCompletedOrders.forEach(o => o.orderItems.forEach(i => {
-    if (itemSalesMap[i.productId]) {
+    if (i.productId && itemSalesMap[i.productId]) {
       itemSalesMap[i.productId].qty += i.quantity;
       itemSalesMap[i.productId].revenue += i.subTotal;
     }
