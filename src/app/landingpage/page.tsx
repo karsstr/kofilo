@@ -610,7 +610,16 @@ export default function KofiloLandingPage() {
             <h4 className="font-black text-[18px] mb-8 text-white">Bantuan & Info</h4>
             <ul className="space-y-5 text-gray-400 text-[15px] font-medium">
               <li><a href="#faq" className="hover:text-white hover:translate-x-1 inline-block transition-all">Pusat Bantuan (FAQ)</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 inline-block transition-all">Hubungi Tim Sales</a></li>
+              <li>
+                <a 
+                  href="https://wa.me/6285799854015?text=Halo%20Tim%20Sales%20Kofilo,%20saya%20ingin%20bertanya%20mengenai%20paket%20sistem%20POS%20dan%20Loyalty." 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-white hover:translate-x-1 inline-block transition-all"
+                >
+                  Hubungi Tim Sales
+                </a>
+              </li>
               <li><a href="#" className="hover:text-white hover:translate-x-1 inline-block transition-all">Syarat & Ketentuan</a></li>
               <li><a href="#" className="hover:text-white hover:translate-x-1 inline-block transition-all">Kebijakan Privasi</a></li>
             </ul>
