@@ -21,6 +21,7 @@ interface Category {
 interface Product {
   id: string;
   name: string;
+  description: string | null;
   price: number;
   sku: string | null;
   image: string | null;
@@ -96,6 +97,7 @@ export default function ProductsPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [sku, setSku] = useState(""); // auto-generated (readonly display)
   const [categoryId, setCategoryId] = useState("");
@@ -229,7 +231,7 @@ export default function ProductsPage() {
   }
 
   function openAddModal() {
-    setName(""); setPrice(""); setSku("");
+    setName(""); setDescription(""); setPrice("");
     setCategoryId(categories[0]?.id || "");
     setIsAvailable(true); setImage(""); setEditId(null);
     setIsCategoryDropdownOpen(false);
@@ -237,7 +239,7 @@ export default function ProductsPage() {
   }
 
   function openEditModal(p: Product) {
-    setName(p.name); setPrice(p.price.toString()); setSku(p.sku || "");
+    setName(p.name); setDescription(p.description || ""); setPrice(p.price.toString());
     setCategoryId(p.categoryId); setIsAvailable(p.isAvailable);
     setImage(p.image || ""); setEditId(p.id);
     setIsCategoryDropdownOpen(false);
@@ -259,7 +261,7 @@ export default function ProductsPage() {
       showToast("error", "Nama, harga, dan kategori wajib diisi");
       return;
     }
-    const payload = { name, price: Number(price), sku: sku || null, categoryId, isAvailable, image: image || null };
+    const payload = { name, description, price: Number(price), categoryId, isAvailable, image: image || null };
     try {
       if (editId) {
         const res = await fetch(`/api/products?id=${editId}`, {
@@ -597,101 +599,118 @@ export default function ProductsPage() {
           ============================================================ */}
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1a1f36]/40 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl relative animate-in fade-in zoom-in-[0.96] duration-300 ease-out">
-            <div className="flex justify-between items-center mb-8">
+          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in-[0.96] duration-300 ease-out flex flex-col max-h-[90vh]">
+            
+            {/* ── HEADER MODAL (Fixed di Atas) ── */}
+            <div className="flex justify-between items-center px-8 pt-8 pb-5 shrink-0 border-b border-transparent">
               <h3 className="text-2xl font-black text-[#1a1f36] tracking-tight">{editId ? "Edit Item" : "Add New Item"}</h3>
               <button onClick={() => setIsOpen(false)} className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 transition-colors active:scale-90">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Product Name</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Artisan Latte"
-                  className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300" required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">SKU / Code <span className="text-gray-300 lowercase font-medium tracking-normal">(Otomatis)</span></label>
-                  <div className="w-full bg-gray-100 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400"><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /></svg>
-                    <span className="text-gray-500">{sku || <span className="text-gray-300 italic">Auto-generated</span>}</span>
+
+            {/* ── AREA FORM (Bisa di-Scroll) ── */}
+            {/* 🔥 UBAHAN: Memindahkan padding ke wrapper luar agar scrollbar merapat ke dalam 🔥 */}
+            <div className="flex-1 overflow-hidden px-8 pb-8 flex flex-col">
+              <div className="flex-1 overflow-y-auto pr-3 -mr-3">
+                <form onSubmit={handleSubmit} className="space-y-5 pr-1 pb-2">
+                  
+                  {/* 1. PRODUCT NAME */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Product Name</label>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Artisan Latte"
+                      className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300" required />
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Price (Rp)</label>
-                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="28000"
-                    className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300" required />
-                </div>
-              </div>
-              {/* Category Dropdown */}
-              <div className="space-y-1.5 relative">
-                <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Category</label>
-                <div onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                  className={`w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] flex justify-between items-center cursor-pointer hover:border-[#6C4E31]/40 transition-all duration-300 ${isCategoryDropdownOpen ? "border-[#6C4E31]/40 ring-4 ring-[#6C4E31]/10 bg-white" : ""}`}>
-                  <span>{categoryId ? categories.find(c => c.id === categoryId)?.name : <span className="text-gray-400 font-medium">Select category...</span>}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isCategoryDropdownOpen ? "rotate-180 text-[#6C4E31]" : "rotate-0"}`}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                </div>
-                {isCategoryDropdownOpen && (
-                  <>
-                    <div className="fixed inset-0 z-[110]" onClick={() => setIsCategoryDropdownOpen(false)} />
-                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] bg-white border border-gray-100 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] py-2 animate-in fade-in zoom-in-[0.96] slide-in-from-top-1 duration-200 overflow-hidden">
-                      <div className="max-h-[200px] overflow-y-auto scrollbar-hide">
-                        {categories.map((cat) => (
-                          <div key={cat.id} onClick={() => { setCategoryId(cat.id); setIsCategoryDropdownOpen(false); }}
-                            className={`px-5 py-3.5 text-[14px] cursor-pointer transition-all duration-200 flex items-center justify-between mx-2 rounded-xl ${categoryId === cat.id ? "bg-[#6C4E31]/5 text-[#6C4E31] font-extrabold" : "text-gray-500 font-bold hover:bg-gray-50 hover:text-[#1a1f36]"}`}>
-                            {cat.name}
-                            {cat.isDrink && <span className="text-[10px] bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full font-bold">Minuman</span>}
+
+                  {/* 2. DESCRIPTION */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Description <span className="text-gray-300 lowercase font-medium tracking-normal">(Optional)</span></label>
+                    <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Authentic blend, Double ristretto..."
+                      className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300" />
+                  </div>
+
+                  {/* 3. PRICE */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Price (Rp)</label>
+                    <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="28000"
+                      className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:border-[#6C4E31]/40 focus:bg-white focus:ring-4 focus:ring-[#6C4E31]/10 transition-all duration-300 placeholder-gray-300" required />
+                  </div>
+
+                  {/* 4. CATEGORY DROPDOWN */}
+                  <div className="space-y-1.5 relative">
+                    <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Category</label>
+                    <div onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                      className={`w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] flex justify-between items-center cursor-pointer hover:border-[#6C4E31]/40 transition-all duration-300 ${isCategoryDropdownOpen ? "border-[#6C4E31]/40 ring-4 ring-[#6C4E31]/10 bg-white" : ""}`}>
+                      <span>{categoryId ? categories.find(c => c.id === categoryId)?.name : <span className="text-gray-400 font-medium">Select category...</span>}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isCategoryDropdownOpen ? "rotate-180 text-[#6C4E31]" : "rotate-0"}`}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                    </div>
+                    {isCategoryDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-[110]" onClick={() => setIsCategoryDropdownOpen(false)} />
+                        <div className="absolute left-0 right-0 bottom-full mb-2 z-[120] bg-white border border-gray-100 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] py-2 animate-in fade-in zoom-in-[0.96] slide-in-from-bottom-1 duration-200 overflow-hidden">
+                          <div className="max-h-[160px] overflow-y-auto scrollbar-hide">
+                            {categories.map((cat) => (
+                              <div key={cat.id} onClick={() => { setCategoryId(cat.id); setIsCategoryDropdownOpen(false); }}
+                                className={`px-5 py-3.5 text-[14px] cursor-pointer transition-all duration-200 flex items-center justify-between mx-2 rounded-xl ${categoryId === cat.id ? "bg-[#6C4E31]/5 text-[#6C4E31] font-extrabold" : "text-gray-500 font-bold hover:bg-gray-50 hover:text-[#1a1f36]"}`}>
+                                {cat.name}
+                                {cat.isDrink && <span className="text-[10px] bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full font-bold">Minuman</span>}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* 5. IMAGE UPLOAD */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Product Image <span className="text-gray-300 lowercase font-medium tracking-normal">(Optional)</span></label>
+                    <div className="flex items-center gap-4">
+                      {image ? (
+                        <div className="relative w-[52px] h-[52px] rounded-[14px] border border-gray-200 overflow-hidden shrink-0 group shadow-sm">
+                          <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => setImage("")}
+                            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200" title="Remove Image">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-[52px] h-[52px] rounded-[14px] border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center shrink-0 text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input type="file" id="image-upload" accept="image/png, image/jpeg, image/jpg, image/webp" onChange={handleImageUpload} className="hidden" />
+                        <label htmlFor="image-upload" className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-[14px] text-[14px] flex justify-center items-center cursor-pointer hover:border-[#6C4E31]/40 hover:bg-white transition-all duration-300">
+                          {image ? "Change Image" : "Upload File"}
+                        </label>
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
-              {/* Image Upload */}
-              <div className="space-y-1.5">
-                <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Product Image <span className="text-gray-300 lowercase font-medium tracking-normal">(Optional)</span></label>
-                <div className="flex items-center gap-4">
-                  {image ? (
-                    <div className="relative w-[52px] h-[52px] rounded-[14px] border border-gray-200 overflow-hidden shrink-0 group shadow-sm">
-                      <img src={image} alt="Preview" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => setImage("")}
-                        className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200" title="Remove Image">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-[52px] h-[52px] rounded-[14px] border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center shrink-0 text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <input type="file" id="image-upload" accept="image/png, image/jpeg, image/jpg, image/webp" onChange={handleImageUpload} className="hidden" />
-                    <label htmlFor="image-upload" className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-[14px] text-[14px] flex justify-center items-center cursor-pointer hover:border-[#6C4E31]/40 hover:bg-white transition-all duration-300">
-                      {image ? "Change Image" : "Upload File"}
-                    </label>
                   </div>
-                </div>
+
+                  {/* 6. TOGGLE AVAILABLE */}
+                  <div className="flex items-center justify-between pt-2 pb-2">
+                    <div>
+                      <h4 className="text-[14px] font-extrabold text-[#1a1f36]">Item is Active</h4>
+                      <p className="text-[12px] text-gray-400 font-medium">Customer can see and order this item</p>
+                    </div>
+                    <button type="button" onClick={() => setIsAvailable(!isAvailable)}
+                      className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none ${isAvailable ? "bg-[#6C4E31]" : "bg-gray-200"}`}>
+                      <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-sm ring-0 transition duration-300 ease-in-out ${isAvailable ? "translate-x-5" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+
+                  {/* BUTTONS */}
+                  <div className="flex gap-3 pt-6 mt-2 border-t border-gray-100">
+                    <button type="button" onClick={() => setIsOpen(false)}
+                      className="flex-1 px-4 py-4 rounded-2xl text-[14px] font-extrabold text-gray-500 bg-gray-50 hover:bg-gray-100 transition-all active:scale-[0.98]">Cancel</button>
+                    <button type="submit"
+                      className="flex-[2] bg-[#1a1f36] text-white py-4 rounded-2xl font-extrabold text-[14px] hover:bg-[#2a314d] hover:-translate-y-0.5 active:scale-[0.98] transition-all">Save Changes</button>
+                  </div>
+                </form>
               </div>
-              {/* Toggle Available */}
-              <div className="flex items-center justify-between pt-2 pb-2">
-                <div>
-                  <h4 className="text-[14px] font-extrabold text-[#1a1f36]">Item is Active</h4>
-                  <p className="text-[12px] text-gray-400 font-medium">Customer can see and order this item</p>
-                </div>
-                <button type="button" onClick={() => setIsAvailable(!isAvailable)}
-                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none ${isAvailable ? "bg-[#6C4E31]" : "bg-gray-200"}`}>
-                  <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-sm ring-0 transition duration-300 ease-in-out ${isAvailable ? "translate-x-5" : "translate-x-0"}`} />
-                </button>
-              </div>
-              <div className="flex gap-3 pt-6 mt-6 border-t border-gray-100">
-                <button type="button" onClick={() => setIsOpen(false)}
-                  className="flex-1 px-4 py-4 rounded-2xl text-[14px] font-extrabold text-gray-500 bg-gray-50 hover:bg-gray-100 transition-all active:scale-[0.98]">Cancel</button>
-                <button type="submit"
-                  className="flex-[2] bg-[#1a1f36] text-white py-4 rounded-2xl font-extrabold text-[14px] shadow-[0_8px_20px_-6px_rgba(26,31,54,0.3)] hover:bg-[#2a314d] hover:-translate-y-0.5 active:scale-[0.98] transition-all">Save Changes</button>
-              </div>
-            </form>
+            </div>
+            
           </div>
         </div>
       )}

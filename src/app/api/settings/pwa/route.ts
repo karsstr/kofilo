@@ -11,11 +11,10 @@ export async function GET() {
   try {
     const settings = await prisma.storeSetting.findFirst({
       select: { 
-        isStoreOpen: true, 
+        storeMode: true, 
+        openTime: true,
+        closeTime: true,
         pwaBanners: true, 
-        pwaWelcomeBg: true,
-        pwaWelcomeSubtitle: true,
-        pwaFooterText: true
       }
     });
     return NextResponse.json({ settings });
@@ -31,17 +30,15 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
     let settings = await prisma.storeSetting.findFirst();
-    
     if (!settings) settings = await prisma.storeSetting.create({ data: { id: "kofilo-store-1" } });
 
     await prisma.storeSetting.update({
       where: { id: settings.id },
       data: { 
-        isStoreOpen: Boolean(body.isStoreOpen),
+        storeMode: body.storeMode || "AUTO", 
+        openTime: body.openTime || "09:00",
+        closeTime: body.closeTime || "00:00",
         pwaBanners: body.pwaBanners || [],
-        pwaWelcomeBg: body.pwaWelcomeBg || null,
-        pwaWelcomeSubtitle: body.pwaWelcomeSubtitle || "TABLE DASHBOARD",
-        pwaFooterText: body.pwaFooterText || "© 2026 KOFILO. PREMIUM EXPERIENCE."
       }
     });
 

@@ -16,10 +16,10 @@ export default function PwaSettingsPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   
-  // State Halaman Penyambut
-  const [welcomeBg, setWelcomeBg] = useState("");
-  const [welcomeSubtitle, setWelcomeSubtitle] = useState("TABLE DASHBOARD");
-  const [footerText, setFooterText] = useState("© 2026 KOFILO. PREMIUM EXPERIENCE.");
+  // UNTUK JAM OPERASIONAL 
+  const [storeMode, setStoreMode] = useState("AUTO");
+  const [openTime, setOpenTime] = useState("07:00");
+  const [closeTime, setCloseTime] = useState("22:00");
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ show: true, type, message });
@@ -34,10 +34,9 @@ export default function PwaSettingsPage() {
           const data = await res.json();
           if (data.settings) {
             setBanners(data.settings.pwaBanners || []);
-            setIsStoreOpen(data.settings.isStoreOpen ?? true);
-            setWelcomeBg(data.settings.pwaWelcomeBg || "");
-            setWelcomeSubtitle(data.settings.pwaWelcomeSubtitle || "TABLE DASHBOARD");
-            setFooterText(data.settings.pwaFooterText || "© 2026 KOFILO. PREMIUM EXPERIENCE.");
+            setStoreMode(data.settings.storeMode || "AUTO");
+            setOpenTime(data.settings.openTime || "07:00");
+            setCloseTime(data.settings.closeTime || "22:00");
           }
         }
       } catch (error) {
@@ -57,14 +56,6 @@ export default function PwaSettingsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleBgUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setWelcomeBg(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const addBanner = () => setBanners([...banners, { id: Date.now().toString(), image: "", isActive: true }]);
   const removeBanner = (id: string) => setBanners(banners.filter(b => b.id !== id));
 
@@ -73,11 +64,10 @@ export default function PwaSettingsPage() {
     setSubmitting(true);
     try {
       const payload = {
-        isStoreOpen,
+        storeMode,
+        openTime,
+        closeTime,
         pwaBanners: banners,
-        pwaWelcomeBg: welcomeBg,
-        pwaWelcomeSubtitle: welcomeSubtitle,
-        pwaFooterText: footerText
       };
 
       const res = await fetch("/api/settings/pwa", {
@@ -112,7 +102,7 @@ export default function PwaSettingsPage() {
       {/* ── HEADER ── */}
       <div className="max-w-4xl mx-auto mb-8">
         <h1 className="text-[28px] font-black tracking-tight text-[#1a1f36]">PWA App Config</h1>
-        <p className="text-[15px] font-medium text-gray-500 mt-1">Atur tampilan promo carousel dan layanan di aplikasi pelanggan.</p>
+        <p className="text-[15px] font-medium text-gray-500 mt-1">Atur jam operasional dan promo carousel di aplikasi pelanggan.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex flex-col gap-6 pb-20">
@@ -121,57 +111,42 @@ export default function PwaSettingsPage() {
         <div className="bg-white border border-gray-100 rounded-[24px] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
           <h2 className="text-[16px] font-black mb-6 flex items-center gap-2">
             <span className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center text-lg">🏪</span>
-            Status Operasional Toko
+            Mode Operasional Toko
           </h2>
           
-          <div className="flex justify-between items-center bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+          <div className="mb-8">
+            <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Pilih Mode Buka / Tutup PWA</label>
+            <div className="flex gap-2 bg-gray-100 p-1.5 rounded-2xl">
+              <button type="button" onClick={() => setStoreMode("AUTO")} className={`flex-1 py-3 text-[14px] font-bold rounded-xl transition-all duration-300 ${storeMode === "AUTO" ? "bg-white text-blue-600 shadow-[0_4px_15px_rgba(0,0,0,0.05)]" : "text-gray-500 hover:bg-gray-200"}`}>
+                🕒 Otomatis
+              </button>
+              <button type="button" onClick={() => setStoreMode("FORCE_OPEN")} className={`flex-1 py-3 text-[14px] font-bold rounded-xl transition-all duration-300 ${storeMode === "FORCE_OPEN" ? "bg-white text-emerald-600 shadow-[0_4px_15px_rgba(0,0,0,0.05)]" : "text-gray-500 hover:bg-gray-200"}`}>
+                ✅ Buka 
+              </button>
+              <button type="button" onClick={() => setStoreMode("FORCE_CLOSE")} className={`flex-1 py-3 text-[14px] font-bold rounded-xl transition-all duration-300 ${storeMode === "FORCE_CLOSE" ? "bg-white text-rose-600 shadow-[0_4px_15px_rgba(0,0,0,0.05)]" : "text-gray-500 hover:bg-gray-200"}`}>
+                🛑 Tutup 
+              </button>
+            </div>
+            <p className="text-gray-500 text-[13px] mt-3 font-medium">
+              {storeMode === "AUTO" && "Sistem akan otomatis membuka & menutup menu sesuai jam operasional di bawah."}
+              {storeMode === "FORCE_OPEN" && "Menu selalu BUKA dan bisa dipesan, mengabaikan jam operasional."}
+              {storeMode === "FORCE_CLOSE" && "Menu selalu TUTUP, mengabaikan jam operasional."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <h3 className="text-[15px] font-black text-[#1a1f36]">Terima Pesanan PWA</h3>
-              <p className="text-gray-500 text-[13px] mt-1 max-w-md">Jika dimatikan, pelanggan tidak bisa menekan tombol checkout di PWA dan akan mendapat notifikasi bahwa toko sedang sibuk/tutup.</p>
+              <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Jam Buka</label>
+              <input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:ring-4 focus:ring-[#6C4E31]/10 focus:border-[#6C4E31]/40 transition-all" required />
             </div>
-            <button type="button" onClick={() => setIsStoreOpen(!isStoreOpen)} className={`w-14 h-8 flex items-center rounded-full p-1 transition-colors ${isStoreOpen ? 'bg-emerald-500' : 'bg-gray-300'}`}>
-              <div className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform ${isStoreOpen ? 'translate-x-6' : ''}`}></div>
-            </button>
-          </div>
-        </div>
-
-        {/* 2. HALAMAN PENYAMBUT PWA */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
-          <h2 className="text-[16px] font-black mb-6 flex items-center gap-2">
-            <span className="w-8 h-8 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center text-lg">📱</span>
-            Halaman Penyambut (Welcome Screen)
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Background Image (16:9)</label>
-              <div className="flex items-center gap-4 bg-gray-50/50 p-3 rounded-2xl border border-gray-100">
-                {welcomeBg ? (
-                  <img src={welcomeBg} alt="Welcome BG" className="w-24 h-14 object-cover rounded-lg shadow-sm" />
-                ) : (
-                  <div className="w-24 h-14 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-400">No Image</div>
-                )}
-                <input 
-                  type="file" accept="image/*"
-                  onChange={(e) => e.target.files?.[0] && handleBgUpload(e.target.files[0])}
-                  className="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#6C4E31]/10 file:text-[#6C4E31] hover:file:bg-[#6C4E31]/20 cursor-pointer"
-                />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Kata-kata Penyambut</label>
-              <input type="text" value={welcomeSubtitle} onChange={(e) => setWelcomeSubtitle(e.target.value)} placeholder="Cth: TABLE DASHBOARD" className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:ring-4 focus:ring-[#6C4E31]/10 focus:border-[#6C4E31]/40 transition-all" />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Teks Copyright (Footer)</label>
-              <input type="text" value={footerText} onChange={(e) => setFooterText(e.target.value)} placeholder="© 2026 KOFILO. PREMIUM EXPERIENCE." className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:ring-4 focus:ring-[#6C4E31]/10 focus:border-[#6C4E31]/40 transition-all" />
+            <div>
+              <label className="block text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Jam Tutup Otomatis</label>
+              <input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-[#1a1f36] font-bold rounded-2xl px-4 py-3.5 text-[14px] focus:outline-none focus:ring-4 focus:ring-[#6C4E31]/10 focus:border-[#6C4E31]/40 transition-all" required />
             </div>
           </div>
         </div>
 
-        {/* 3. BANNER CAROUSEL SETTING */}
+        {/* 2. BANNER CAROUSEL SETTING */}
         <div className="bg-white border border-gray-100 rounded-[24px] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.04)]">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-[16px] font-black flex items-center gap-2">
@@ -225,7 +200,6 @@ export default function PwaSettingsPage() {
             {submitting ? "Menyimpan..." : "Simpan Perubahan"}
           </button>
         </div>
-
       </form>
 
       {/* ── TOAST NOTIFICATION ── */}

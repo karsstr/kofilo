@@ -81,6 +81,7 @@ model Category {
 model Product {
   id          String  @id @default(cuid())
   name        String
+  description String?
   price       Int
   sku         String?
   image       String?
@@ -222,9 +223,9 @@ model StoreSetting {
   // ── PWA SETTINGS ──
   pwaBanners         Json?    @default("[]") // Menyimpan array banner promo
   pwaEnableTakeaway  Boolean  @default(true) // Toggle izin Takeaway
-  pwaWelcomeBg       String?  @db.Text
-  pwaWelcomeSubtitle String?  @default("TABLE DASHBOARD")
-  pwaFooterText      String?  @default("© 2026 KOFILO. PREMIUM EXPERIENCE.")
+  openTime  String? @default("09:00")
+  closeTime String? @default("00:00")
+  storeMode String? @default("AUTO")
 
   updatedAt   DateTime @updatedAt
 }

@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
         return {
           id: p.id,
           name: p.name,
+          description: p.description,
           price: p.price,
           sku: p.sku,
           image: p.image,
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, price, image, isAvailable, categoryId } = body;
+    const { name, description, price, image, isAvailable, categoryId } = body;
 
     if (!name || !price || !categoryId) {
       return NextResponse.json(
@@ -153,6 +154,7 @@ export async function POST(req: NextRequest) {
     const product = await prisma.product.create({
       data: {
         name,
+        description: description || null,
         price: Number(price),
         sku,
         image: image || null,
@@ -186,6 +188,7 @@ export async function PUT(req: NextRequest) {
     // 🔥 Jika kategori berubah, generate ulang SKU
     let updateData: any = {
       ...(body.name !== undefined && { name: body.name }),
+      ...(body.description !== undefined && { description: body.description || null }),
       ...(body.price !== undefined && { price: Number(body.price) }),
       ...(body.image !== undefined && { image: body.image || null }),
       ...(body.isAvailable !== undefined && { isAvailable: body.isAvailable }),

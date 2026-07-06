@@ -10,6 +10,7 @@ import AuthDrawer from '@/components/customer/AuthDrawer';
 interface MenuItem {
   id: string;
   name: string;
+  description: string | null;
   price: number;
   image: string | null;
   sku: string | null;
@@ -63,18 +64,64 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
 
   useEffect(() => {
     setIsMounted(true);
-    fetch("/api/public/store")
-      .then(res => res.json())
-      .then(data => {
-        if (data.settings) {
-          setStoreInfo({
-            name: data.settings.storeName || "Kofilo",
-            logo: data.settings.logo || "",
-            pwaBanners: data.settings.pwaBanners || []
-          });
+    let intervalId: NodeJS.Timeout;
+
+    const checkStoreAndFetchInfo = async () => {
+      try {
+        // Tambahkan cache: 'no-store' agar Next.js selalu mengambil data terbaru, bukan dari memori sementara
+        const res = await fetch("/api/public/store", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            // 1. Update Info Banner & Logo
+            setStoreInfo({
+              name: data.settings.storeName || "Kofilo",
+              logo: data.settings.logo || "",
+              pwaBanners: data.settings.pwaBanners || []
+            });
+
+            // 2. Cek Status Buka/Tutup Secara Real-time
+            const openTime = data.settings.openTime || "07:00";
+            const closeTime = data.settings.closeTime || "22:00";
+            const storeMode = data.settings.storeMode || "AUTO";
+
+            const currentWIB = new Date().toLocaleTimeString('id-ID', { 
+              timeZone: 'Asia/Jakarta', 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false
+            });
+
+            let isStoreOpen = false;
+            if (storeMode === "FORCE_OPEN") {
+              isStoreOpen = true;
+            } else if (storeMode === "FORCE_CLOSE") {
+              isStoreOpen = false;
+            } else {
+              isStoreOpen = currentWIB >= openTime && currentWIB <= closeTime;
+            }
+
+            // 3. Tindakan: Jika toko tiba-tiba tutup, langsung tendang ke Halaman Penyambut
+            if (!isStoreOpen) {
+              router.replace(`/${tableId}`); // Pakai replace agar tidak bisa di-back
+            }
+          }
         }
-      }).catch(console.error);
-  }, []);
+      } catch (error) {
+        console.error("Gagal load info toko:", error);
+      }
+    };
+
+    // Eksekusi pertama kali saat halaman dimuat
+    checkStoreAndFetchInfo();
+
+    // Jalankan radar pengecekan setiap 10 detik
+    intervalId = setInterval(checkStoreAndFetchInfo, 10000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [tableId, router]);
 
   // Filter banner yang status isActive-nya true saja
   const activeBanners = storeInfo.pwaBanners.filter((b: any) => b.isActive);
@@ -429,7 +476,11 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
                     </div>
                     <div className="flex flex-col justify-center flex-1 py-1 pr-2">
                       <p className="text-[15px] font-extrabold text-[#1C1917] leading-snug mb-1.5 line-clamp-2">{product.name}</p>
-                      <p className="text-[12px] text-gray-400 font-medium line-clamp-1 mb-2">Authentic blend</p>
+                      {product.description && (
+                        <p className="text-[12px] text-gray-400 font-medium line-clamp-2 mb-2 leading-tight">
+                          {product.description}
+                        </p>
+                      )}
                       <p className="text-[#A67B5B] font-black text-[14px]">Rp {product.price.toLocaleString('id-ID')}</p>
                     </div>
                     {product.isAvailable && (

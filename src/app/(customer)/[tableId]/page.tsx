@@ -1,99 +1,183 @@
+"use client";
+
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 
-// 🔥 BARIS INI SANGAT WAJIB ADA AGAR HALAMAN TIDAK DI-CACHE OLEH NEXT.JS 🔥
-export const dynamic = 'force-dynamic';
-
-export default async function CustomerLandingPage({
+export default function CustomerLandingPage({
   params,
 }: {
   params: Promise<{ tableId: string }>;
 }) {
-  const { tableId } = await params;
+  // Karena ini Client Component di Next.js 15, params harus di-unwrap dengan use()
+  const { tableId } = use(params);
 
-  // 🔥 Tarik data dari Database
-  const store = await prisma.storeSetting.findFirst();
-  const storeName = store?.storeName || "Kofilo";
-  const storeLogo = store?.logo || null;
+  const [storeInfo, setStoreInfo] = useState({
+    name: "Kafiloo",
+    logo: null as string | null,
+    openTime: "07:00",
+    closeTime: "22:00",
+  });
   
-  // Cek apakah toko sedang buka atau tutup
-  const isStoreOpen = store?.isStoreOpen ?? true;
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Data Halaman Penyambut Dinamis
-  const bgImage = store?.pwaWelcomeBg || "https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=2000&auto=format&fit=crop";
-  const welcomeSubtitle = store?.pwaWelcomeSubtitle || "Table Dashboard";
-  const footerText = store?.pwaFooterText || "© 2026 KOFILO. PREMIUM EXPERIENCE.";
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const checkStoreStatus = async () => {
+      try {
+        const res = await fetch("/api/public/store", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            const s = data.settings;
+            
+            setStoreInfo({
+              name: s.storeName || "Kafiloo",
+              logo: s.logo || null,
+              openTime: s.openTime || "07:00",
+              closeTime: s.closeTime || "22:00",
+            });
+
+            // Ambil waktu saat ini di WIB
+            const currentWIB = new Date().toLocaleTimeString('id-ID', { 
+              timeZone: 'Asia/Jakarta', 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false
+            });
+
+            // 🔥 LOGIKA TIGA MODE & PERBAIKAN JAM LEWAT TENGAH MALAM 🔥
+            let openStatus = false;
+            
+            if (s.storeMode === "FORCE_OPEN") {
+              openStatus = true;
+            } else if (s.storeMode === "FORCE_CLOSE") {
+              openStatus = false;
+            } else {
+              const open = s.openTime || "07:00";
+              const close = s.closeTime || "22:00";
+              
+              if (open <= close) {
+                // Jam normal (misal 07:00 sampai 22:00)
+                openStatus = currentWIB >= open && currentWIB <= close;
+              } else {
+                // Shift malam/subuh (misal 09:00 sampai 00:00 atau 02:00)
+                openStatus = currentWIB >= open || currentWIB <= close;
+              }
+            }
+
+            setIsStoreOpen(openStatus);
+          }
+        }
+      } catch (error) {
+        console.error("Gagal load info toko:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Eksekusi pertama kali
+    checkStoreStatus();
+    
+    // Pasang radar pengecekan setiap 10 detik
+    intervalId = setInterval(checkStoreStatus, 10000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Tampilkan loading spinner yang elegan saat mengecek status pertama kali
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] w-full flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #EAE4D9 0%, #F9F7F3 30%, #FCFBF9 100%)' }}>
+         <div className="animate-spin w-8 h-8 border-4 border-[#3d2c20] border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center p-6 overflow-hidden bg-[#0f1222] selection:bg-[#6C4E31] selection:text-white font-sans">
+    <div className="relative min-h-[100dvh] w-full flex flex-col p-6 overflow-hidden font-sans selection:bg-[#3d2c20] selection:text-white"
+         style={{ background: 'linear-gradient(160deg, #EAE4D9 0%, #F9F7F3 30%, #FCFBF9 100%)' }}>
       
-      {/* ── 1. BACKGROUND GAMBAR KAFE ── */}
-      <div 
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-105"
-        style={{ backgroundImage: `url('${bgImage}')` }}
-      />
-      
-      {/* ── 2. OVERLAY GELAP AGAR TEKS TERBACA ── */}
-      <div className="absolute inset-0 z-10 bg-black/60 backdrop-brightness-[0.8]" />
-
-      {/* ── 3. KONTEN UTAMA (TEPAT DI TENGAH) ── */}
-      <div className="relative z-20 w-full max-w-md flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000 ease-out">
-        
-        {/* Logo Icon Dinamis */}
-        {storeLogo ? (
-          <img src={storeLogo} alt="Logo" className="w-24 h-24 rounded-full object-cover border border-white/20 mb-5 shadow-[0_0_40px_rgba(255,255,255,0.1)] bg-white" />
+      {/* ── HEADER (KIRI ATAS) ── */}
+      <div className="relative z-20 flex items-center gap-3 pt-6 pb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+        {storeInfo.logo ? (
+          <img src={storeInfo.logo} alt="Logo" className="w-10 h-10 rounded-full object-cover bg-[#3d2c20]" />
         ) : (
-          <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full border border-white/20 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-11 h-11 text-white opacity-90">
+          <div className="w-10 h-10 rounded-full bg-[#3d2c20] flex items-center justify-center text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
               <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 3a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3.75A.75.75 0 017.5 3zM16.5 3a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3.75a.75.75 0 01.75-.75z" />
               <path fillRule="evenodd" d="M3 8.25A1.5 1.5 0 014.5 6.75h15a1.5 1.5 0 011.5 1.5v1.5a1.5 1.5 0 01-1.5 1.5h-1.5a.75.75 0 00-.75.75v.52a8.251 8.251 0 01-5.748 7.922 4.5 4.5 0 01-5.004 0A8.251 8.251 0 016.75 12.02v-.52a.75.75 0 00-.75-.75H4.5a1.5 1.5 0 01-1.5-1.5v-1.5zm6.75 2.25a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75v-1.5z" clipRule="evenodd" />
             </svg>
           </div>
         )}
+        <span className="font-semibold text-[20px] text-[#1A1A1A] tracking-tight">{storeInfo.name}</span>
+      </div>
 
-        {/* Nama Brand Dinamis */}
-        <h1 className="text-[48px] leading-none font-black text-white tracking-tight mb-3 drop-shadow-lg">
-          {storeName}
-        </h1>
+      {/* ── KONTEN UTAMA ── */}
+      <div className="relative z-20 flex flex-col flex-1 animate-in fade-in duration-1000 delay-150">
         
-        {/* Indikator Nomor Meja / Teks Penyambut yang Estetik */}
-        <div className="flex items-center gap-4 mb-10 w-full px-4">
-          <span className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-[#6C4E31]/80"></span>
-          <p className="text-gray-200 text-[13px] font-bold uppercase tracking-[0.25em] drop-shadow-md text-center leading-relaxed max-w-[250px] sm:max-w-none">
-            {welcomeSubtitle}
-          </p>
-          <span className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-[#6C4E31]/80"></span>
-        </div>
+        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">
+          MENTENG • JAKARTA
+        </p>
 
-        {/* 🔥 LOGIKA BUKA/TUTUP TOKO 🔥 */}
+        <h1 className="text-[48px] leading-[1.1] text-[#1A1A1A] tracking-tight mb-6">
+          <span className="font-bold">Slow coffee,</span><br />
+          <span className="font-serif italic text-[#B57C54]">served kindly.</span>
+        </h1>
+
+        <p className="text-[#555555] text-[16px] leading-[1.6] max-w-md mb-10">
+          A quieter way to order. Pick a drink, adjust it to how you like it, and skip the queue. Fresh brews, made this morning.
+        </p>
+
+        {/* ── INFO CARDS ── */}
+        <div className="grid grid-cols-3 gap-3 mb-10">
+          <div className="bg-transparent border border-gray-200/80 rounded-[20px] p-4 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">OPEN</span>
+            <span className="text-[13px] font-semibold text-[#1A1A1A]">{storeInfo.openTime} — {storeInfo.closeTime}</span>
+          </div>
+          <div className="bg-transparent border border-gray-200/80 rounded-[20px] p-4 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">PREP</span>
+            <span className="text-[13px] font-semibold text-[#1A1A1A]">~ 6 min</span>
+          </div>
+          <div className="bg-transparent border border-gray-200/80 rounded-[20px] p-4 flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">TABLE</span>
+            <span className="text-[13px] font-semibold text-[#1A1A1A] break-all">Seat {tableId}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BAGIAN BAWAH (CTA & FOOTER) ── */}
+      <div className="relative z-20 pb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
+        
         {isStoreOpen ? (
-          // Jika toko BUKA: Tampilkan Tombol Lanjut ke Menu
           <Link 
             href={`/${tableId}/menu`}
-            className="w-full bg-white text-[#0f1222] hover:bg-gray-100 py-4.5 rounded-[20px] font-extrabold text-[16px] transition-all duration-300 flex justify-center items-center gap-2 shadow-[0_10px_40px_rgba(0,0,0,0.4)] active:scale-[0.98] group"
+            className="w-full bg-[#3d2c20] text-white py-5 px-6 rounded-[28px] font-medium text-[16px] transition-transform active:scale-[0.98] flex justify-between items-center shadow-lg group"
           >
-            View Menu & Order
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
+            <span>View menu & order</span>
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </div>
           </Link>
         ) : (
-          // Jika toko TUTUP: Tampilkan Notifikasi Elegan (Glassmorphism Merah)
-          <div className="w-full bg-red-500/10 backdrop-blur-md border border-red-500/30 text-white py-4 px-6 rounded-[20px] flex flex-col justify-center items-center gap-1.5 shadow-[0_10px_40px_rgba(239,68,68,0.2)]">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 text-red-400 mb-1">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span className="font-extrabold text-[15px] tracking-wide">Mohon Maaf, Toko Sedang Tutup</span>
-            <span className="text-[12px] font-medium text-gray-300 text-center leading-snug">Pemesanan online sedang dinonaktifkan. Silakan hubungi kasir.</span>
+          <div className="w-full bg-[#e6ded5] text-[#3d2c20] py-5 px-6 rounded-[28px] flex justify-between items-center opacity-80 cursor-not-allowed transition-all">
+            <div className="flex flex-col">
+              <span className="font-semibold text-[15px]">Toko Sedang Tutup</span>
+              <span className="text-[12px] opacity-70">Pemesanan online tidak tersedia.</span>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-[#3d2c20]/10 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+            </div>
           </div>
         )}
 
-      </div>
-
-      {/* ── 4. COPYRIGHT (DI BAWAH ABSOLUT) ── */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center z-20 animate-in fade-in duration-1000 delay-300">
-        <p className="text-gray-400/60 text-[11px] font-semibold tracking-wide px-6 text-center uppercase">
-          {footerText}
+        <p className="text-[#888888] text-[11px] text-center mt-6 tracking-wide">
+          No account needed - Pay at the counter or via QRIS
         </p>
       </div>
 

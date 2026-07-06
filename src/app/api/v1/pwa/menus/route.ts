@@ -27,7 +27,7 @@ export async function GET() {
       const items = products
         .filter(p => p.categoryId === cat.id)
         .map(p => ({
-          id: p.id, name: p.name, price: p.price, image: p.image, sku: p.sku,
+          id: p.id, name: p.name, description: p.description, price: p.price, image: p.image, sku: p.sku,
           isAvailable: p.isAvailable, categoryId: p.categoryId, categoryName: cat.name, isDrink: cat.isDrink
         }));
       
