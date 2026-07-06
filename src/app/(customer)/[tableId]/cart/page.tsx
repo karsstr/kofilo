@@ -27,20 +27,60 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
     taxRate: 0, serviceCharge: 0 
   });
 
-  // 🔥 FETCH DATA SETTING DARI API 🔥
+  // 🔥 RADAR PENGECEKAN TOKO & FETCH SETTINGS (Setiap 10 Detik) 🔥
   useEffect(() => {
-    fetch('/api/public/store')
-      .then(res => res.json())
-      .then(data => {
-        if (data.settings) {
-          setStoreSettings({
-            taxRate: data.settings.taxRate || 0,
-            serviceCharge: data.settings.serviceCharge || 0,
-          });
+    let intervalId: NodeJS.Timeout;
+
+    const checkStoreStatus = async () => {
+      try {
+        const res = await fetch("/api/public/store", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            const s = data.settings;
+            
+            // 1. Update Tax & Service Charge
+            setStoreSettings({
+              taxRate: s.taxRate || 0,
+              serviceCharge: s.serviceCharge || 0,
+            });
+
+            // 2. Cek Jam Buka/Tutup
+            const currentWIB = new Date().toLocaleTimeString('id-ID', { 
+              timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false 
+            });
+
+            let openStatus = false;
+            if (s.storeMode === "FORCE_OPEN") {
+              openStatus = true;
+            } else if (s.storeMode === "FORCE_CLOSE") {
+              openStatus = false;
+            } else {
+              const open = s.openTime || "07:00";
+              const close = s.closeTime || "22:00";
+              if (open <= close) openStatus = currentWIB >= open && currentWIB <= close;
+              else openStatus = currentWIB >= open || currentWIB <= close;
+            }
+
+            // 3. Jika toko tutup, langsung tendang ke Halaman Penyambut
+            if (!openStatus) {
+              router.replace(`/${tableId}`);
+            }
+          }
         }
-      })
-      .catch(() => {}); // silent fail, hitungan akan fallback ke 0
-  }, []);
+      } catch (error) {
+        console.error("Gagal load info toko:", error);
+      }
+    };
+
+    // Eksekusi saat pertama kali buka keranjang
+    checkStoreStatus();
+    
+    // Ulangi pengecekan setiap 10 detik
+    intervalId = setInterval(checkStoreStatus, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [tableId, router]);
 
   // 🔥 PERHITUNGAN DINAMIS 🔥
   const subtotal = cart.reduce((acc, item) => {
