@@ -96,7 +96,14 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             } else if (storeMode === "FORCE_CLOSE") {
               isStoreOpen = false;
             } else {
-              isStoreOpen = currentWIB >= openTime && currentWIB <= closeTime;
+              // 🔥 PERBAIKAN: Handle cross-midnight (misal buka 09:00 - 01:00)
+              if (openTime <= closeTime) {
+                // Jam normal (misal 07:00 sampai 22:00)
+                isStoreOpen = currentWIB >= openTime && currentWIB <= closeTime;
+              } else {
+                // Shift malam/subuh (misal 09:00 sampai 01:00)
+                isStoreOpen = currentWIB >= openTime || currentWIB <= closeTime;
+              }
             }
 
             if (!isStoreOpen) {
