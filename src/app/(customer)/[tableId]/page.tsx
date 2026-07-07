@@ -39,13 +39,16 @@ export default function CustomerLandingPage({
               closeTime: s.closeTime || "22:00",
             });
 
-            // Ambil waktu saat ini di WIB
-            const currentWIB = new Date().toLocaleTimeString('id-ID', { 
-              timeZone: 'Asia/Jakarta', 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false
-            });
+            // 🔥 KONVERSI KE MENIT UNTUK PERBANDINGAN PRESISI 🔥
+            const timeToMinutes = (t: string) => {
+              const parts = t.split(/[:.]/);
+              return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const openMinutes = timeToMinutes(s.openTime || "07:00");
+            const closeMinutes = timeToMinutes(s.closeTime || "22:00");
 
             // 🔥 LOGIKA TIGA MODE & PERBAIKAN JAM LEWAT TENGAH MALAM 🔥
             let openStatus = false;
@@ -54,16 +57,13 @@ export default function CustomerLandingPage({
               openStatus = true;
             } else if (s.storeMode === "FORCE_CLOSE") {
               openStatus = false;
-            } else {
-              const open = s.openTime || "07:00";
-              const close = s.closeTime || "22:00";
-              
-              if (open <= close) {
+            } else {              
+              if (openMinutes <= closeMinutes) {
                 // Jam normal (misal 07:00 sampai 22:00)
-                openStatus = currentWIB >= open && currentWIB <= close;
+                openStatus = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
               } else {
                 // Shift malam/subuh (misal 09:00 sampai 00:00 atau 02:00)
-                openStatus = currentWIB >= open || currentWIB <= close;
+                openStatus = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
               }
             }
 

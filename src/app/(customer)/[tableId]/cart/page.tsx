@@ -45,10 +45,16 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
               serviceCharge: s.serviceCharge || 0,
             });
 
-            // 2. Cek Jam Buka/Tutup
-            const currentWIB = new Date().toLocaleTimeString('id-ID', { 
-              timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false 
-            });
+            // 2. Cek Jam Buka/Tutup (konversi ke menit biar presisi)
+            const timeToMinutes = (t: string) => {
+              const parts = t.split(/[:.]/);
+              return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const openMinutes = timeToMinutes(s.openTime || "07:00");
+            const closeMinutes = timeToMinutes(s.closeTime || "22:00");
 
             let openStatus = false;
             if (s.storeMode === "FORCE_OPEN") {
@@ -56,10 +62,8 @@ export default function CustomerCartPage({ params }: { params: Promise<{ tableId
             } else if (s.storeMode === "FORCE_CLOSE") {
               openStatus = false;
             } else {
-              const open = s.openTime || "07:00";
-              const close = s.closeTime || "22:00";
-              if (open <= close) openStatus = currentWIB >= open && currentWIB <= close;
-              else openStatus = currentWIB >= open || currentWIB <= close;
+              if (openMinutes <= closeMinutes) openStatus = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+              else openStatus = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
             }
 
             // 3. Jika toko tutup, langsung tendang ke Halaman Penyambut

@@ -83,12 +83,16 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             const closeTime = data.settings.closeTime || "22:00";
             const storeMode = data.settings.storeMode || "AUTO";
 
-            const currentWIB = new Date().toLocaleTimeString('id-ID', { 
-              timeZone: 'Asia/Jakarta', 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false
-            });
+            // 🔥 KONVERSI KE MENIT UNTUK PERBANDINGAN PRESISI 🔥
+            const timeToMinutes = (t: string) => {
+              const parts = t.split(/[:.]/);
+              return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const openMinutes = timeToMinutes(openTime);
+            const closeMinutes = timeToMinutes(closeTime);
 
             let isStoreOpen = false;
             if (storeMode === "FORCE_OPEN") {
@@ -96,13 +100,12 @@ export default function CustomerMenuPage({ params }: { params: Promise<{ tableId
             } else if (storeMode === "FORCE_CLOSE") {
               isStoreOpen = false;
             } else {
-              // 🔥 PERBAIKAN: Handle cross-midnight (misal buka 09:00 - 01:00)
-              if (openTime <= closeTime) {
+              if (openMinutes <= closeMinutes) {
                 // Jam normal (misal 07:00 sampai 22:00)
-                isStoreOpen = currentWIB >= openTime && currentWIB <= closeTime;
+                isStoreOpen = currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
               } else {
                 // Shift malam/subuh (misal 09:00 sampai 01:00)
-                isStoreOpen = currentWIB >= openTime || currentWIB <= closeTime;
+                isStoreOpen = currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
               }
             }
 
