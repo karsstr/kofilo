@@ -17,7 +17,7 @@ export default function TermsAndConditions() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState(sections[0].id);
   const [scrolled, setScrolled] = useState(false);
-  const [storeInfo, setStoreInfo] = useState({ name: "Kafiloo", logo: "" });
+  const [storeInfo, setStoreInfo] = useState({ name: "Kofilo", logo: "" });
 
   useEffect(() => {
     fetch("/api/public/store")
@@ -25,7 +25,7 @@ export default function TermsAndConditions() {
       .then((data) => {
         if (data.settings) {
           setStoreInfo({
-            name: data.settings.storeName || "Kafiloo",
+            name: data.settings.storeName || "Kofilo",
             logo: data.settings.logo || "",
           });
         }
@@ -76,8 +76,7 @@ export default function TermsAndConditions() {
   const storeInitial = storeInfo.name ? storeInfo.name.charAt(0).toUpperCase() : "K";
 
   return (
-    // 🔥 PERBAIKAN: Hapus overflow-x-hidden dari sini 🔥
-    <div className="min-h-screen bg-[#Fdfbf9] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white relative pb-20">
+    <div className="min-h-screen bg-[#Fdfbf9] text-[#1a1f36] font-sans selection:bg-[#6C4E31] selection:text-white relative">
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes blob { 0%, 100% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } }
@@ -86,13 +85,14 @@ export default function TermsAndConditions() {
         .bg-grid-pattern { background-image: radial-gradient(rgba(108, 78, 49, 0.15) 1px, transparent 1px); background-size: 40px 40px; }
       `}} />
 
-      {/* 🔥 PERBAIKAN: Bungkus background animasi dalam div khusus yg overflow-hidden 🔥 */}
+      {/* ── BACKGROUND ORBS & GRID ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-20">
         <div className="absolute inset-0 bg-grid-pattern opacity-60"></div>
         <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-orange-200/30 rounded-full blur-[150px] animate-blob mix-blend-multiply"></div>
         <div className="absolute top-40 right-0 w-[600px] h-[600px] bg-[#6C4E31]/10 rounded-full blur-[150px] animate-blob-delayed mix-blend-multiply"></div>
       </div>
 
+      {/* ── NAVBAR (Persis Landing Page) ── */}
       <div className="fixed top-0 w-full z-50 p-4 transition-all duration-500 pointer-events-none">
         <nav className={`max-w-6xl mx-auto pointer-events-auto transition-all duration-500 rounded-full px-6 py-3 flex items-center justify-between ${scrolled ? "bg-white/80 backdrop-blur-2xl border border-white/50 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)]" : "bg-transparent py-4"}`}>
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push('/landingpage')}>
@@ -123,10 +123,11 @@ export default function TermsAndConditions() {
         </nav>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 mt-32 flex flex-col md:flex-row gap-8 relative z-10 items-start">
+      {/* ── KONTEN HALAMAN ── */}
+      <div className="max-w-6xl mx-auto px-6 pt-32 pb-24 flex flex-col md:flex-row gap-8 relative z-10 items-start min-h-screen">
         
-        {/* 🔥 SIDEBAR 🔥 */}
-        <aside className="w-full md:w-1/4 sticky top-32">
+        {/* ── SIDEBAR ── */}
+        <aside className="w-full md:w-1/4 h-fit sticky top-32">
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_-10px_rgba(0,0,0,0.04)] p-4 border border-white/50">
             <nav className="flex flex-col space-y-1">
               {sections.map((sec) => (
@@ -148,7 +149,7 @@ export default function TermsAndConditions() {
 
         {/* ── KONTEN UTAMA ── */}
         <main className="w-full md:w-3/4">
-          <div className="bg-white/90 backdrop-blur-2xl rounded-[32px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-white/50 p-8 md:p-14 mb-20">
+          <div className="bg-white/90 backdrop-blur-2xl rounded-[32px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-white/50 p-8 md:p-14">
             <h1 className="text-[36px] md:text-[42px] font-black text-[#1a1f36] tracking-tight mb-3">
               Syarat dan Ketentuan
             </h1>
@@ -159,9 +160,9 @@ export default function TermsAndConditions() {
             <div className="prose prose-gray max-w-none text-[15px] leading-[1.8] text-gray-600">
               <p className="mb-6">
                 Syarat dan ketentuan di bawah ini mengatur penggunaan layanan jasa yang ditawarkan oleh 
-                Kafiloo terkait penyedia platform kasir (POS) dan pengelolaan pesanan online (PWA) dari mulai 
+                Kofilo terkait penyedia platform kasir (POS) dan pengelolaan pesanan online (PWA) dari mulai 
                 penginputan data barang, pesanan pelanggan, sampai dengan proses riwayat transaksi. 
-                Syarat dan ketentuan ini dapat mempengaruhi hak dan kewajiban pengguna jasa Kafiloo
+                Syarat dan ketentuan ini dapat mempengaruhi hak dan kewajiban pengguna jasa Kofilo
                 di bawah ketentuan hukum yang berlaku.
               </p>
               <p className="mb-10">
@@ -173,30 +174,30 @@ export default function TermsAndConditions() {
               <div id="definisi" className="scroll-mt-40 mb-12">
                 <h2 className="text-[20px] font-black text-[#1a1f36] mb-4 uppercase tracking-wide">1. Definisi</h2>
                 <ul className="list-disc pl-5 space-y-2">
-                  <li><strong>Kafiloo</strong> adalah platform perangkat lunak kasir dan pemesanan mandiri untuk bisnis F&B.</li>
-                  <li><strong>Pengguna</strong> adalah pihak (pemilik bisnis atau kasir) yang menggunakan layanan Kafiloo.</li>
-                  <li><strong>Pelanggan</strong> adalah pembeli yang melakukan pemesanan melalui sistem PWA Kafiloo.</li>
+                  <li><strong>Kofilo</strong> adalah platform perangkat lunak kasir dan pemesanan mandiri untuk bisnis F&B.</li>
+                  <li><strong>Pengguna</strong> adalah pihak (pemilik bisnis atau kasir) yang menggunakan layanan Kofilo.</li>
+                  <li><strong>Pelanggan</strong> adalah pembeli yang melakukan pemesanan melalui sistem PWA Kofilo.</li>
                 </ul>
               </div>
 
               <div id="pengguna" className="scroll-mt-40 mb-12">
                 <h2 className="text-[20px] font-black text-[#1a1f36] mb-4 uppercase tracking-wide">2. Pengguna & Syarat Pengguna Platform</h2>
-                <p>Pengguna wajib memberikan informasi bisnis yang akurat dan sah saat mendaftar. Pengguna bertanggung jawab penuh atas keamanan akun dan kata sandi yang digunakan untuk mengakses Superadmin Kafiloo.</p>
+                <p>Pengguna wajib memberikan informasi bisnis yang akurat dan sah saat mendaftar. Pengguna bertanggung jawab penuh atas keamanan akun dan kata sandi yang digunakan untuk mengakses Superadmin Kofilo.</p>
               </div>
 
               <div id="penggunaan" className="scroll-mt-40 mb-12">
                 <h2 className="text-[20px] font-black text-[#1a1f36] mb-4 uppercase tracking-wide">3. Penggunaan Platform</h2>
-                <p>Platform ini disediakan "sebagaimana adanya". Kafiloo tidak menjamin bahwa platform akan selalu bebas dari gangguan, namun kami berkomitmen untuk menjaga waktu aktif (uptime) server sebaik mungkin untuk kelancaran operasional kafe Anda.</p>
+                <p>Platform ini disediakan "sebagaimana adanya". Kofilo tidak menjamin bahwa platform akan selalu bebas dari gangguan, namun kami berkomitmen untuk menjaga waktu aktif (uptime) server sebaik mungkin untuk kelancaran operasional kafe Anda.</p>
               </div>
 
               <div id="ketentuan" className="scroll-mt-40 mb-12">
                 <h2 className="text-[20px] font-black text-[#1a1f36] mb-4 uppercase tracking-wide">4. Ketentuan Platform</h2>
-                <p>Pengguna setuju untuk tidak menggunakan platform ini untuk tujuan ilegal, mengunggah materi yang melanggar hak cipta, atau melakukan rekayasa balik (reverse engineering) pada perangkat lunak Kafiloo.</p>
+                <p>Pengguna setuju untuk tidak menggunakan platform ini untuk tujuan ilegal, mengunggah materi yang melanggar hak cipta, atau melakukan rekayasa balik (reverse engineering) pada perangkat lunak Kofilo.</p>
               </div>
 
               <div id="penyalahgunaan" className="scroll-mt-40 mb-12">
                 <h2 className="text-[20px] font-black text-[#1a1f36] mb-4 uppercase tracking-wide">5. Penyalahgunaan Platform</h2>
-                <p>Kafiloo berhak untuk menangguhkan atau menghapus akun pengguna tanpa pemberitahuan sebelumnya apabila ditemukan bukti kuat adanya manipulasi sistem, penipuan transaksi, atau pelanggaran berat terhadap syarat ini.</p>
+                <p>Kofilo berhak untuk menangguhkan atau menghapus akun pengguna tanpa pemberitahuan sebelumnya apabila ditemukan bukti kuat adanya manipulasi sistem, penipuan transaksi, atau pelanggaran berat terhadap syarat ini.</p>
               </div>
 
               <div id="lainnya" className="scroll-mt-40">
@@ -207,6 +208,58 @@ export default function TermsAndConditions() {
           </div>
         </main>
       </div>
+
+      {/* ── SUPER FOOTER (Persis Landing Page) ── */}
+      <footer className="bg-[#1a1f36] text-white pt-24 pb-10 relative z-10 rounded-t-[50px] md:rounded-t-[80px]">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-4 mb-8">
+              {storeInfo.logo ? (
+                <img src={storeInfo.logo} alt="Logo" className="w-12 h-12 rounded-[16px] object-cover bg-white shadow-[0_10px_20px_rgba(108,78,49,0.5)]" />
+              ) : (
+                <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-[#6C4E31] to-[#583f27] flex items-center justify-center text-white text-2xl font-black shadow-[0_10px_20px_rgba(108,78,49,0.5)]">{storeInitial}</div>
+              )}
+              <span className="font-black text-[32px] tracking-tight">{storeInfo.name}.</span>
+            </div>
+            <p className="text-gray-400 text-[16px] max-w-sm leading-relaxed">Sistem POS & Loyalty Hub modern yang didesain khusus untuk melipatgandakan retensi pelanggan dan omset bisnis F&B Anda secara otomatis.</p>
+          </div>
+          <div>
+            <h4 className="font-black text-[18px] mb-8 text-white">Produk {storeInfo.name}</h4>
+            <ul className="space-y-5 text-gray-400 text-[15px] font-medium">
+              <li><Link href="/landingpage#fitur" className="hover:text-white hover:translate-x-1 inline-block transition-all">PWA Ordering App</Link></li>
+              <li><Link href="/landingpage#fitur" className="hover:text-white hover:translate-x-1 inline-block transition-all">Loyalty Reward System</Link></li>
+              <li><Link href="/landingpage#fitur" className="hover:text-white hover:translate-x-1 inline-block transition-all">Cloud Admin Dashboard</Link></li>
+              <li><Link href="/landingpage#harga" className="hover:text-white hover:translate-x-1 inline-block transition-all">Harga & Paket</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-black text-[18px] mb-8 text-white">Bantuan & Info</h4>
+            <ul className="space-y-5 text-gray-400 text-[15px] font-medium">
+              <li><Link href="/landingpage#faq" className="hover:text-white hover:translate-x-1 inline-block transition-all">Pusat Bantuan (FAQ)</Link></li>
+              <li>
+                <a 
+                  href="https://wa.me/6285799854015?text=Halo%20Tim%20Sales%20Kofilo,%20saya%20ingin%20bertanya%20mengenai%20paket%20sistem%20POS%20dan%20Loyalty." 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-white hover:translate-x-1 inline-block transition-all"
+                >
+                  Hubungi Tim Sales
+                </a>
+              </li>
+              <li><Link href="/landingpage/syarat-ketentuan" className="hover:text-white hover:translate-x-1 inline-block transition-all">Syarat & Ketentuan</Link></li>
+              <li><Link href="/landingpage/kebijakan-privasi" className="hover:text-white hover:translate-x-1 inline-block transition-all">Kebijakan Privasi</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 border-t border-white/10 pt-10 flex flex-col md:flex-row justify-between items-center gap-6">
+          <p className="text-[14px] text-gray-500 font-medium">© {new Date().getFullYear()} {storeInfo.name} Software F&B. Seluruh Hak Cipta Dilindungi.</p>
+          <div className="flex gap-4">
+            <a href="#" className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#6C4E31] hover:border-transparent hover:-translate-y-1 transition-all shadow-sm">IG</a>
+            <a href="#" className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#6C4E31] hover:border-transparent hover:-translate-y-1 transition-all shadow-sm">X</a>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }
