@@ -620,8 +620,8 @@ export default function KofiloLandingPage() {
                   Hubungi Tim Sales
                 </a>
               </li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 inline-block transition-all">Syarat & Ketentuan</a></li>
-              <li><a href="#" className="hover:text-white hover:translate-x-1 inline-block transition-all">Kebijakan Privasi</a></li>
+              <li><a href="/landingpage/syarat-ketentuan" className="hover:text-white hover:translate-x-1 inline-block transition-all">Syarat & Ketentuan</a></li>
+              <li><a href="/landingpage/kebijakan-privasi" className="hover:text-white hover:translate-x-1 inline-block transition-all">Kebijakan Privasi</a></li>
             </ul>
           </div>
         </div>
